@@ -1,0 +1,15 @@
+{
+  "name": "make-my-marriage",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.18.1",
+  "scripts": {
+    "dev": "corepack pnpm --parallel --filter @make-my-marriage/web --filter @make-my-marriage/api dev",
+    "dev:web": "corepack pnpm --filter @make-my-marriage/web dev",
+    "dev:api": "corepack pnpm --filter @make-my-marriage/api dev",
+    "build": "corepack pnpm --filter @make-my-marriage/contracts build && corepack pnpm --filter @make-my-marriage/web build && corepack pnpm --filter @make-my-marriage/api build",
+    "lint": "corepack pnpm --filter @make-my-marriage/web lint && corepack pnpm --filter @make-my-marriage/api lint && corepack pnpm --filter @make-my-marriage/contracts lint",
+    "typecheck": "corepack pnpm --filter @make-my-marriage/contracts build && corepack pnpm --filter @make-my-marriage/web typecheck && corepack pnpm --filter @make-my-marriage/api typecheck",
+    "test": "corepack pnpm --filter @make-my-marriage/api test"
+  }
+}
