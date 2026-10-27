@@ -17,7 +17,7 @@ export function SiteHeader() {
         <nav className="main-nav" aria-label="Main navigation">
           <a href="#features">Features</a><a href="#how-it-works">How it works</a><a href="#website-themes">Wedding website</a><a href="#faq">FAQ</a>
         </nav>
-        <div className="header-actions"><a className="button button--dark button--small" href="#get-started">Start planning <ArrowUpRight size={15} /></a></div>
+        <div className="header-actions"><a className="sign-in-link" href="/sign-in">Sign in</a><a className="button button--dark button--small" href="/sign-up">Start planning <ArrowUpRight size={15} /></a></div>
       </div>
     </header>
   );
@@ -40,7 +40,7 @@ export function SiteFooter() {
         <div className="footer-brand"><Brand /><p>A thoughtful space for planning, celebrating, and preserving your wedding.</p></div>
         <div className="footer-column"><strong>PRODUCT</strong><a href="#features">Features</a><a href="#how-it-works">How it works</a><a href="#website-themes">Wedding website</a></div>
         <div className="footer-column"><strong>GUEST EXPERIENCE</strong><a href="#guest-experience">RSVP &amp; photos</a><a href="#faq">FAQs</a></div>
-        <div className="footer-column"><strong>YOUR WEDDING</strong><a href="#get-started">Get started</a><a href="#faq">Help &amp; FAQs</a></div>
+        <div className="footer-column"><strong>YOUR WEDDING</strong><a href="/sign-up">Get started</a><a href="#faq">Help &amp; FAQs</a></div>
       </div>
       <div className="footer-bottom"><span>© 2026 Make My Marriage</span><span>Thoughtfully made for Indian weddings</span><a href="#top">Back to top ↑</a></div>
     </footer>

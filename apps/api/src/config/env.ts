@@ -13,17 +13,13 @@ const optionalEmail = z.preprocess(
   (value) => (value === "" ? undefined : value),
   z.string().email().optional()
 );
-const optionalSessionSecret = z.preprocess(
-  (value) => (value === "" ? undefined : value),
-  z.string().min(32).optional()
-);
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(4000),
   WEB_ORIGIN: z.url().default("http://localhost:3000"),
   MONGODB_URI: optionalNonEmptyString,
-  SESSION_SECRET: optionalSessionSecret,
+  MONGODB_DNS_SERVERS: optionalNonEmptyString,
   RESEND_API_KEY: optionalNonEmptyString,
   RESEND_FROM_EMAIL: optionalEmail,
   R2_ACCOUNT_ID: optionalNonEmptyString,
@@ -32,6 +28,10 @@ const envSchema = z.object({
   R2_SECRET_ACCESS_KEY: optionalNonEmptyString,
   R2_BUCKET_NAME: optionalNonEmptyString,
   GOOGLE_PLACES_API_KEY: optionalNonEmptyString
+}).superRefine((value, context) => {
+  if (Boolean(value.RESEND_API_KEY) !== Boolean(value.RESEND_FROM_EMAIL)) {
+    context.addIssue({ code: "custom", path: ["RESEND_API_KEY"], message: "Configure both Resend email settings or leave both empty." });
+  }
 });
 
 const parsed = envSchema.safeParse(process.env);

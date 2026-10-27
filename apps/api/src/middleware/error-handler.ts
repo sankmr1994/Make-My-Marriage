@@ -6,7 +6,7 @@ export const errorHandler: ErrorRequestHandler = (error, _request, response, _ne
   const statusCode = knownError ? error.statusCode : 500;
   const code = knownError ? error.code : "INTERNAL_ERROR";
 
-  if (!knownError) console.error("Unhandled API error", error);
+  if (!knownError) console.error("Unhandled API error", { name: error instanceof Error ? error.name : "UnknownError" });
 
   response.status(statusCode).json({
     error: {
