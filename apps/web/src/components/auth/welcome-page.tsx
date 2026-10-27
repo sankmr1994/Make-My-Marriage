@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, LoaderCircle, LogOut } from "lucide-react";
+import { ArrowLeft, ArrowRight, LoaderCircle, LogOut } from "lucide-react";
 import { apiBaseUrl } from "@/lib/api";
+import { WeddingDashboard } from "@/components/dashboard/wedding-dashboard";
 
 type Account = { id: string; displayName: string; email: string };
 type PageStatus = "loading" | "ready" | "error";
@@ -12,6 +13,7 @@ type PageStatus = "loading" | "ready" | "error";
 export function WelcomePage() {
   const router = useRouter();
   const [account, setAccount] = useState<Account | null>(null);
+  const [hasWedding, setHasWedding] = useState(false);
   const [status, setStatus] = useState<PageStatus>("loading");
   const [error, setError] = useState<string | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -33,10 +35,11 @@ export function WelcomePage() {
         }
         if (!response.ok) throw new Error("account_unavailable");
 
-        const result = await response.json() as { data?: { user?: Account } };
+        const result = await response.json() as { data?: { user?: Account; membership?: unknown } };
         if (!result.data?.user) throw new Error("account_unavailable");
         if (active) {
           setAccount(result.data.user);
+          setHasWedding(Boolean(result.data.membership));
           setStatus("ready");
         }
       } catch {
@@ -76,6 +79,8 @@ export function WelcomePage() {
     }
   }
 
+  if (status === "ready" && hasWedding) return <WeddingDashboard />;
+
   return (
     <main className="welcome-page">
       <section className="welcome-card" aria-live="polite">
@@ -93,6 +98,7 @@ export function WelcomePage() {
             <p className="welcome-description">Your account is ready. We’ll help you bring your wedding plans together here.</p>
             <div className="welcome-account"><span>Signed in as</span><strong>{account.email}</strong></div>
             {error && <p className="auth-message auth-message--error" role="alert">{error}</p>}
+            {!hasWedding && <Link className="button button--dark welcome-onboarding-link" href="/onboarding">Set up your wedding <ArrowRight size={16} /></Link>}
             <button className="button button--dark welcome-signout" type="button" onClick={() => void signOut()} disabled={isSigningOut}>
               {isSigningOut ? <><LoaderCircle className="auth-spinner" size={17} /> Signing out…</> : <>Sign out <LogOut size={16} /></>}
             </button>

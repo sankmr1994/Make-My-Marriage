@@ -23,6 +23,25 @@ This file tracks delivery progress. It is not a replacement for the approved pro
 - Added presentation-only selection states for the sample ceremony and theme cards. These selections are not saved and do not configure a real wedding website.
 - Verification after the homepage component refactor: web ESLint and TypeScript checks passed.
 
+### Wedding onboarding
+
+- Added a responsive onboarding flow based on the Stitch welcome, couple details, wedding details, events, review, and completion designs.
+- The flow requires bride and groom names, wedding date, city, state, and address. Ceremony/event entry is optional; each event captures its name, local date/time, and venue.
+- Added browser-session draft saving, inline validation, editable review, and retryable creation states.
+- Added the documented `POST /weddings` API with Zod validation, Mongoose models, one-active-wedding enforcement, and first Admin membership creation. Mongo transactions are used when supported, with compensating cleanup for standalone MongoDB deployments.
+- Added the documented `POST /events` API for optional onboarding events and a `GET /weddings/current` endpoint for recovering a successful create when the client loses the response.
+- The onboarding route requires a valid account session and redirects existing wedding members. Account welcome now links users without a wedding into onboarding.
+- The first dashboard milestone is implemented below; tasks, expenses, guests, vendors, publishing, and other workspace modules remain future work.
+- Manual browser verification on localhost:3000: tested signed-out redirect, existing-wedding redirect, defer and save/exit, required-field validation, back/forward editing, draft restoration after reload, suggested/custom event add/edit/remove, incomplete-event validation, three-event workspace creation, and zero-event workspace creation. `GET /weddings/current` confirmed the no-event wedding and `ADMIN` membership. The browser walkthrough exposed a privacy issue: onboarding draft data in tab-scoped `sessionStorage` is reused after switching to another account in the same tab, so the second account saw the first account’s couple names. Reload and resume also returns to the welcome step rather than the last active step. Failure injection for wedding/event request retry and mobile viewport/keyboard testing were not performed.
+
+### Initial wedding dashboard
+
+- Replaced the post-onboarding welcome view for wedding members with a responsive dashboard based on the Stitch V1 dashboard screen.
+- Displays the saved couple names, wedding date/countdown, location, and onboarding events; an empty state is shown when no events were added.
+- Added working edit dialogs for wedding details and each event, persisted through authenticated, wedding-scoped `PATCH /weddings/current` and `PATCH /events/:eventId` APIs. Added authenticated `GET /events` for the timeline.
+- Kept task, expense, guest, vendor, website, livestream, and photo modules out of the interactive dashboard until those features are implemented.
+- Verification: API and web ESLint and TypeScript checks passed. Manual browser interaction has not yet been verified.
+
 ## In progress
 
 ### Authentication and account API
@@ -38,11 +57,11 @@ This file tracks delivery progress. It is not a replacement for the approved pro
 - Password reset delivery requires `RESEND_API_KEY` and `RESEND_FROM_EMAIL`; keep delivery unconfigured until the missing `/reset-password` page is implemented. Wedding creation, invitation acceptance, authorization middleware, and protected workspace routes remain future backend work.
 - Signup and password reset require a password of at least 12 characters. Verification: web ESLint and TypeScript checks passed; the API health and authentication integration tests passed against the configured MongoDB database, including signup, login, password reset, session invalidation, and logout.
 - Known source-document mismatch: the API and database designs specify Express/MongoDB, while the system architecture document still specifies Spring Boot/PostgreSQL. This implementation follows the user instruction and the API/database designs; reconciling that architecture document remains open.
-- Manual browser verification on localhost:3000: created a fresh dummy account with a valid password, confirmed signup signs in, session survives reload, login accepts case-insensitive email and rejects password case changes, and logout disables repeated clicks, returns home, and invalidates direct `/welcome` access. Checked required signup/login fields, malformed email, password mismatch, duplicate signup emails, unknown account, wrong password, and show/hide password. Invalid credentials use a generic message; server-side signup password errors explain the 12-character minimum. Auth remains in progress because password recovery UI completion and wedding onboarding/protected workspace routes remain outstanding.
+- Manual browser verification on localhost:3000: created a fresh dummy account with a valid password, confirmed signup signs in, session survives reload, login accepts case-insensitive email and rejects password case changes, and logout disables repeated clicks, returns home, and invalidates direct `/welcome` access. Checked required signup/login fields, malformed email, password mismatch, duplicate signup emails, unknown account, wrong password, and show/hide password. Invalid credentials use a generic message; server-side signup password errors explain the 12-character minimum. Authentication remains in progress because the user-facing password recovery completion page and broader protected workspace routes are outstanding.
 
 ## Current state
 
-The repository scaffold and public homepage are complete. Authentication is in progress: signup, login, current-account lookup, and current-session logout are implemented with a welcome page. Password-reset email delivery and its user-facing completion page, wedding onboarding, and protected workspace routes remain outstanding.
+The repository scaffold, public homepage, signup/login/session flow, first wedding onboarding flow, and initial wedding dashboard are implemented. Password-reset completion UI and the remaining protected workspace modules are still outstanding.
 
 ## Planned V1 milestones
 

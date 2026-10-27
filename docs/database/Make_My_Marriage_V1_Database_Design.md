@@ -203,6 +203,7 @@ On acceptance, require a valid token, unexpired and non-revoked status, a matchi
 |---|---|---:|---|
 | `_id` | ObjectId | Yes |  |
 | `weddingId` | ObjectId | Yes | Tenant scope |
+| `clientEventId` | string | No | Client-generated UUID used only for idempotent onboarding retries; unique within a wedding when present |
 | `name` | string | Yes | User-entered event name; manual event creation in V1 |
 | `startsAt` | Date | Yes | UTC instant computed from local entry plus event timezone |
 | `endsAt` | Date | No | Must be after `startsAt` if supplied |
@@ -525,6 +526,7 @@ Create indexes through versioned setup/migration scripts. Avoid relying only on 
 | `membershipInvitations` | `{ weddingId: 1, emailNormalized: 1, status: 1 }` | Find/reissue pending invitation |
 | `membershipInvitations` | TTL `{ expiresAt: 1 }` (if old records may be removed) | Cleanup only; API still checks expiry |
 | `events` | `{ weddingId: 1, status: 1, startsAt: 1 }` | Active upcoming events |
+| `events` | Unique partial `{ weddingId: 1, clientEventId: 1 }` where `clientEventId` is a string | Idempotent onboarding event saves |
 | `tasks` | `{ weddingId: 1, status: 1, dueAt: 1 }` | Dashboard status and overdue tasks |
 | `tasks` | `{ weddingId: 1, assigneeMembershipId: 1, status: 1 }` | Tasks by assignee |
 | `tasks` | `{ weddingId: 1, eventId: 1, status: 1 }` | Tasks per event |
