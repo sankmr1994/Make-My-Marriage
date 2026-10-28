@@ -64,7 +64,7 @@ corepack pnpm dev:api
 
 ## Deployment readiness
 
-Deploy `apps/web` and `apps/api` as separate Vercel projects. The API exposes its Express app from `apps/api/api/index.ts` for Vercel and uses `src/server.ts` only for local development. Configure the deployed frontend's `NEXT_PUBLIC_API_BASE_URL` to the API's `/api/v1` URL, and configure the API's `WEB_ORIGIN` to the frontend origin. Keep all database and provider secrets only in the API project's environment.
+Deploy `apps/web` and `apps/api` as separate Vercel projects. The API exports its Express app as the default export from `apps/api/src/app.ts` for Vercel, while `src/server.ts` starts the local development server and database indexes. Configure the deployed frontend's `NEXT_PUBLIC_API_BASE_URL` to the API's `/api/v1` URL, and configure the API's `WEB_ORIGIN` to the frontend origin. Keep all database and provider secrets only in the API project's environment.
 
 ## Planned stages
 

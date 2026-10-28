@@ -22,3 +22,5 @@ app.use("/api/v1", authRouter);
 app.use("/api/v1", weddingsRouter);
 app.use("/api/v1", membershipInvitationsRouter);
 app.use(errorHandler);
+
+export default app;
