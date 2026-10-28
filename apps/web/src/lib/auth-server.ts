@@ -1,7 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-
-const serverApiBaseUrl = `${(process.env.API_ORIGIN ?? "http://localhost:4000").replace(/\/+$/, "")}/api/v1`;
+import { apiBaseUrl } from "@/lib/api";
 
 export async function redirectAuthenticatedUser(redirectTo?: string): Promise<void> {
   const sessionCookie = (await cookies()).get("mmm_session");
@@ -9,7 +8,7 @@ export async function redirectAuthenticatedUser(redirectTo?: string): Promise<vo
 
   let authenticated = false;
   try {
-    const response = await fetch(`${serverApiBaseUrl}/auth/me`, {
+    const response = await fetch(`${apiBaseUrl}/auth/me`, {
       headers: { Cookie: `mmm_session=${encodeURIComponent(sessionCookie.value)}` },
       cache: "no-store",
       signal: AbortSignal.timeout(3000)

@@ -41,14 +41,14 @@ function readCookie(request: Request, name: string): string | undefined {
 }
 
 function setSessionCookie(response: Response, token: string, expiresAt: Date): void {
-  const secure = env.NODE_ENV === "production" ? "; Secure" : "";
+  const crossOriginAttributes = env.NODE_ENV === "production" ? "; SameSite=None; Secure" : "; SameSite=Lax";
   const maxAge = Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 1000));
-  response.setHeader("Set-Cookie", `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`);
+  response.setHeader("Set-Cookie", `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly${crossOriginAttributes}; Max-Age=${maxAge}`);
 }
 
 function clearSessionCookie(response: Response): void {
-  const secure = env.NODE_ENV === "production" ? "; Secure" : "";
-  response.setHeader("Set-Cookie", `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`);
+  const crossOriginAttributes = env.NODE_ENV === "production" ? "; SameSite=None; Secure" : "; SameSite=Lax";
+  response.setHeader("Set-Cookie", `${SESSION_COOKIE}=; Path=/; HttpOnly${crossOriginAttributes}; Max-Age=0`);
 }
 
 function validationFailure(response: Response, issues: z.ZodIssue[]): void {
