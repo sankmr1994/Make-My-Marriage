@@ -6,7 +6,7 @@ import { ArrowRight, Eye, EyeOff, LoaderCircle } from "lucide-react";
 import { apiBaseUrl } from "@/lib/api";
 
 type AuthMode = "sign-in" | "sign-up";
-type AuthFormProps = { mode: AuthMode };
+type AuthFormProps = { mode: AuthMode; redirectTo?: string; initialEmail?: string };
 type ApiErrorBody = { error?: { code?: string; message?: string; fieldErrors?: Record<string, string> } };
 
 const errorMessages: Record<string, string> = {
@@ -15,7 +15,7 @@ const errorMessages: Record<string, string> = {
   VALIDATION_ERROR: "Check the details and try again."
 };
 
-export function AuthForm({ mode }: AuthFormProps) {
+export function AuthForm({ mode, redirectTo, initialEmail }: AuthFormProps) {
   const router = useRouter();
   const isSignUp = mode === "sign-up";
   const [showPassword, setShowPassword] = useState(false);
@@ -46,6 +46,14 @@ export function AuthForm({ mode }: AuthFormProps) {
       });
       if (!response.ok) {
         const body = await response.json().catch(() => null) as ApiErrorBody | null;
+        if (isSignUp && body?.error?.code === "EMAIL_ALREADY_EXISTS") {
+          const params = new URLSearchParams();
+          if (redirectTo) params.set("next", redirectTo);
+          params.set("email", String(formData.get("email") ?? "").trim());
+          router.replace(`/sign-in?${params.toString()}`);
+          router.refresh();
+          return;
+        }
         if (isSignUp && body?.error?.code === "VALIDATION_ERROR" && body.error.fieldErrors?.password && password.length < 12) {
           setError("Use a password with at least 12 characters.");
           return;
@@ -53,7 +61,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         setError(body?.error?.code ? errorMessages[body.error.code] ?? body.error.message ?? "We couldn’t complete that request. Please try again." : "Account access is not available right now. Please try again later.");
         return;
       }
-      router.replace("/welcome");
+      router.replace(redirectTo ?? "/welcome");
       router.refresh();
     } catch {
       setError("We couldn’t reach the account service. Please try again in a moment.");
@@ -83,7 +91,7 @@ export function AuthForm({ mode }: AuthFormProps) {
     <>
       <form className="auth-form" onSubmit={handleSubmit}>
         {isSignUp && <label className="auth-field"><span>Your name</span><input autoComplete="name" name="displayName" placeholder="e.g. Riya Kumar" required maxLength={100} /></label>}
-        <label className="auth-field"><span>Email address</span><input autoComplete="email" name="email" type="email" placeholder="you@example.com" required maxLength={254} /></label>
+        <label className="auth-field"><span>Email address</span><input autoComplete="email" name="email" type="email" placeholder="you@example.com" defaultValue={initialEmail} required maxLength={254} /></label>
         <label className="auth-field">
           <span className="auth-field-label-row"><span>Password</span>{!isSignUp && <button className="auth-inline-link" type="button" onClick={() => { setRecoveryOpen(true); setRecoveryMessage(null); }}>Forgot password?</button>}</span>
           <span className="password-input-wrap"><input autoComplete={isSignUp ? "new-password" : "current-password"} name="password" type={showPassword ? "text" : "password"} placeholder="Enter your password" required minLength={isSignUp ? 12 : undefined} maxLength={128} /><button className="password-toggle" type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((visible) => !visible)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></span>

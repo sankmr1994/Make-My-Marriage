@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { apiBaseUrl } from "@/lib/api";
 
-export async function redirectAuthenticatedUser(): Promise<void> {
+export async function redirectAuthenticatedUser(redirectTo?: string): Promise<void> {
   const sessionCookie = (await cookies()).get("mmm_session");
   if (!sessionCookie?.value) return;
 
@@ -18,5 +18,5 @@ export async function redirectAuthenticatedUser(): Promise<void> {
     // Keep sign-in available if the API cannot be reached.
   }
 
-  if (authenticated) redirect("/welcome");
+  if (authenticated) redirect(redirectTo ?? "/welcome");
 }

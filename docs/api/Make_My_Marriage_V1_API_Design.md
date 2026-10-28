@@ -17,7 +17,7 @@ The API is designed for a modular Express monolith deployed separately from the 
 ### V1 rules this API must preserve
 
 - Three product roles: `ADMIN`, `ORGANISER`, and accountless `GUEST`.
-- Admin means the bride/groom. Admin can add and remove Organisers. Organisers can manage wedding planning but cannot add, remove, or otherwise manage membership.
+- Admin means the bride/groom. Admin can manage members; Organisers can manage wedding planning but cannot invite or remove members. The wedding creator cannot be removed by anyone.
 - A user account can have at most one active wedding membership.
 - Guests do not need a Make My Marriage account. Guest APIs are authorized by purpose-scoped links/tokens.
 - One family/household is one guest record: primary contact, one email, and `familyCount`.
@@ -142,7 +142,7 @@ Use simple email/password authentication with server-side sessions stored throug
 | Link vendors to tasks/expenses | Yes | Yes | No |
 | Configure/publish website and livestream | Yes | Yes | View published experience only |
 | Moderate/delete photos | Yes | Yes | Upload/view only through valid links |
-| Invite/remove Organisers | **Yes** | **No** | No |
+| Invite members / remove members except creator | **Yes** | **No** | No |
 | Create or manage membership invitations | **Yes** | **No** | No |
 
 `GUEST` is not a `weddingMemberships.role`. Guests do not have a management account unless they independently sign up and are invited into a management role.
@@ -178,15 +178,16 @@ All routes in this table are relative to `/api/v1`.
 | `GET` | `/weddings/current` | Admin/Organiser | Get current wedding |
 | `PATCH` | `/weddings/current` | Admin/Organiser | Update wedding information |
 | `GET` | `/weddings/current/dashboard` | Admin/Organiser | Dashboard counts and summaries |
-| `GET` | `/weddings/current/members` | Admin/Organiser | List active members and roles |
+| `GET` | `/weddings/current/members` | Admin/Organiser | List active members, roles, and workspace-creator protection status |
 | `GET` | `/weddings/current/membership-invitations` | Admin only | List pending/recent membership invitations |
 | `POST` | `/weddings/current/membership-invitations` | Admin only | Invite an Organiser or the second Admin/partner where allowed |
 | `POST` | `/membership-invitations/accept` | Authenticated with valid invitation token | Accept invitation and create membership |
 | `POST` | `/weddings/current/membership-invitations/:invitationId/resend` | Admin only | Reissue invitation with a fresh token and send email |
 | `DELETE` | `/weddings/current/membership-invitations/:invitationId` | Admin only | Revoke a pending invitation |
-| `DELETE` | `/weddings/current/organisers/:membershipId` | Admin only | Remove an Organiser membership |
+| `DELETE` | `/weddings/current/members/:membershipId` | Admin only | Revoke a member's workspace access, except the wedding creator; preserves their account and wedding records |
+| `GET` | `/membership-invitations/:token` | Public with invitation token | Return limited wedding context for a valid invitation; inactive tokens return status only |
 
-The product permits two Admins (bride/groom). An `ADMIN` invitation is allowed only for the partner flow when the wedding has fewer than two active Admins. There is no general endpoint to create unlimited Admins. The organiser-removal endpoint must refuse to remove Admin memberships.
+The product permits two Admins (bride/groom). An `ADMIN` invitation is allowed only for the partner flow when the wedding has fewer than two active Admins. There is no general endpoint to create unlimited Admins. The membership-removal endpoint protects the user referenced by `weddings.createdByUserId`; all other active members, including a partner Admin, can be removed by an Admin. Removal changes only the membership status to `REMOVED` and records `removedAt`.
 
 ### 4.3 Events
 
@@ -197,6 +198,7 @@ The product permits two Admins (bride/groom). An `ADMIN` invitation is allowed o
 | `GET` | `/events/:eventId` | Admin/Organiser | Get event details |
 | `PATCH` | `/events/:eventId` | Admin/Organiser | Update event |
 | `DELETE` | `/events/:eventId` | Admin/Organiser | Archive event; do not cascade-delete tasks/expenses |
+| `POST` | `/events/:eventId/unarchive` | Admin/Organiser | Restore an archived event to active planning |
 
 ### 4.4 Tasks
 
@@ -404,7 +406,7 @@ Request:
 }
 ```
 
-An `ADMIN` role is allowed only for the partner flow when the wedding has fewer than two active Admins. Only an Admin can call this endpoint. Express creates a secure invitation token, stores its hash, sends the invitation email through Resend, and records the email submission result. The raw token is not returned in the API response or stored in MongoDB.
+An `ADMIN` role is allowed only for the partner flow when the wedding has fewer than two active Admins. Only an Admin can call this endpoint. Express creates a cryptographically random invitation token, stores only its hash, sends the invitation email through Resend, and records the email submission result. The raw token is included only in the emailed link; it is not returned in the API response or stored in MongoDB. Invitations expire after seven days.
 
 Response: `201 Created`.
 
@@ -419,7 +421,7 @@ Response: `201 Created`.
 }
 ```
 
-`emailSubmissionStatus: ACCEPTED` means Resend accepted the message, not that the invitee received or read it. If submission fails, preserve the pending invitation and allow an Admin to resend it, issuing a fresh token and invalidating the previous link.
+`emailSubmissionStatus` is `ACCEPTED`, `FAILED`, or `NOT_CONFIGURED`. `ACCEPTED` means Resend accepted the message, not that the invitee received or read it. If submission fails or Resend is not configured, preserve the pending invitation and allow an Admin to resend it after configuration. Resending creates a replacement invitation with a fresh token and invalidates the previous link. Acceptance requires a signed-in account whose normalized email matches the invitation email.
 
 ### 5.4 Create an event
 
@@ -693,7 +695,7 @@ Validate the video ID format; do not accept raw iframe HTML. When disabled or no
 - A user may join a wedding only after a valid invitation is accepted.
 - Membership acceptance requires a valid, unexpired, unrevoked invitation token and a normalized account email matching the invitation's destination.
 - An account can have no more than one active wedding membership.
-- Only Admin can create/revoke membership invitations or remove Organisers.
+- Only Admin can create/revoke membership invitations or remove active members other than the wedding creator. Attempts to remove the creator return `403 WORKSPACE_CREATOR_PROTECTED`.
 - Organiser APIs must return `403 FORBIDDEN` when attempting membership management.
 - Do not expose `weddingId` as a way to select another tenant.
 
@@ -770,6 +772,7 @@ Validate the video ID format; do not accept raw iframe HTML. When disabled or no
 | `400` | `VALIDATION_ERROR` | Invalid body, path, query or field value |
 | `401` | `UNAUTHENTICATED` | Missing or invalid session |
 | `403` | `FORBIDDEN` | Valid account/token but action is outside its permission scope |
+| `403` | `WORKSPACE_CREATOR_PROTECTED` | Wedding creator membership cannot be removed |
 | `404` | `NOT_FOUND` | Resource absent or intentionally hidden across tenant boundaries |
 | `409` | `CONFLICT` | Duplicate record, existing membership, or invalid state transition |
 | `409` | `EMAIL_ALREADY_EXISTS` | Normalized email is already registered to an account |
@@ -849,7 +852,7 @@ Avoid revealing another wedding's data through different error messages. In some
 Before implementation is considered complete, verify that:
 
 - [ ] A logged-in user cannot create a second active wedding or join a second wedding.
-- [ ] Admin can invite/remove Organisers; Organiser attempts to manage membership return `403`.
+- [ ] Admin can remove a partner Admin or Organiser, while the wedding creator cannot be removed by any member; Organiser attempts to manage membership return `403`.
 - [ ] A membership invitation only works with a valid unexpired token, matching account email, and available membership slot.
 - [ ] Every event/task/expense/guest/vendor/photo query is scoped to the user's wedding or a validated guest token.
 - [ ] Duplicate guest email within the same wedding is rejected; the same email can exist in another wedding.

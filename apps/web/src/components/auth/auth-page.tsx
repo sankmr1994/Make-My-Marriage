@@ -46,8 +46,12 @@ function WorkspacePreview() {
   );
 }
 
-export function AuthPage({ mode }: { mode: AuthMode }) {
+export function AuthPage({ mode, redirectTo, initialEmail }: { mode: AuthMode; redirectTo?: string; initialEmail?: string }) {
   const content = pageContent[mode];
+  const switchParams = new URLSearchParams();
+  if (redirectTo) switchParams.set("next", redirectTo);
+  if (initialEmail) switchParams.set("email", initialEmail);
+  const nextQuery = switchParams.size ? `?${switchParams.toString()}` : "";
   return (
     <main className={`auth-page auth-page--${mode}`}>
       <section className="auth-panel">
@@ -57,11 +61,11 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
         </div>
         <div className="auth-content">
           <div className="auth-heading"><h1>{content.title}</h1><p>{content.description}</p></div>
-          <AuthForm mode={mode} />
+          <AuthForm mode={mode} redirectTo={redirectTo} initialEmail={initialEmail} />
           <div className="auth-divider"><span>OR</span></div>
           <p className="auth-switch">
             {mode === "sign-up" ? "Already have an account? " : "New to Make My Marriage? "}
-            <Link href={mode === "sign-up" ? "/sign-in" : "/sign-up"}>{mode === "sign-up" ? "Sign in" : "Create an account"}</Link>
+            <Link href={`${mode === "sign-up" ? "/sign-in" : "/sign-up"}${nextQuery}`}>{mode === "sign-up" ? "Sign in" : "Create an account"}</Link>
           </p>
         </div>
         <footer className="auth-footer"><span>© 2026 Make My Marriage</span><nav aria-label="Legal"><span>Privacy Policy</span><i>•</i><span>Terms of Service</span></nav></footer>

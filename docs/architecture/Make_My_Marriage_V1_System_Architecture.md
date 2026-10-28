@@ -35,7 +35,7 @@ The **logical architecture is the decision to keep modules in one backend applic
 
 1. **Wedding-scoped tenancy:** all management data belongs to a wedding. Server-side access checks must confirm that the signed-in user is a member of that wedding.
 2. **Three product roles only:** `ADMIN`, `ORGANISER`, and guest-facing access without a user account. Do not introduce a separate finance manager or viewer role in V1.
-3. **Admin/Organiser permissions:** both can perform wedding operations; only Admin can add or remove Organisers. The API must enforce this rule, not just the UI.
+3. **Admin/Organiser permissions:** both can perform wedding operations; only Admin can manage members. The wedding creator is protected from removal by all members, and removing another member only revokes their workspace membership. The API must enforce these rules, not just the UI.
 4. **Guests do not create accounts:** guest flows use narrowly scoped, non-guessable links/tokens for RSVP and photo upload.
 5. **Modular monolith first:** domain modules have clear boundaries but are deployed as one backend application initially.
 6. **Media is separate from transactional data:** store photo bytes in object storage and store metadata/references in PostgreSQL.
@@ -252,7 +252,7 @@ Authenticated management endpoints should derive the wedding scope from the user
 - One user can belong to at most one wedding in V1: enforce a unique constraint on `wedding_members.user_id`.
 - A wedding can have several members, including Admins and Organisers.
 - A member must have exactly one role in that wedding.
-- Only an Admin can invite/remove Organisers.
+- Only an Admin can invite members or remove an active member other than the workspace creator; organisers cannot manage membership.
 - An Organiser cannot add/remove members or change role assignments.
 - All management-domain records include `wedding_id` directly or are reachable only through a parent with `wedding_id`.
 

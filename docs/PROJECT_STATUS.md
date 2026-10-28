@@ -1,6 +1,6 @@
 # Project Status
 
-**Last updated:** 2026-10-27  
+**Last updated:** 2026-10-28
 **Product scope source:** The approved V1 documents in `docs/prd/`, `docs/architecture/`, `docs/database/`, and `docs/api/`.
 
 This file tracks delivery progress. It is not a replacement for the approved product requirements.
@@ -37,10 +37,34 @@ This file tracks delivery progress. It is not a replacement for the approved pro
 ### Initial wedding dashboard
 
 - Replaced the post-onboarding welcome view for wedding members with a responsive dashboard based on the Stitch V1 dashboard screen.
+- Added separate Dashboard, My Wedding, and Events views in the sidebar, matching Stitch’s section-based navigation. Dashboard shows an overview; wedding details and the full event schedule live in their respective views.
 - Displays the saved couple names, wedding date/countdown, location, and onboarding events; an empty state is shown when no events were added.
 - Added working edit dialogs for wedding details and each event, persisted through authenticated, wedding-scoped `PATCH /weddings/current` and `PATCH /events/:eventId` APIs. Added authenticated `GET /events` for the timeline.
 - Kept task, expense, guest, vendor, website, livestream, and photo modules out of the interactive dashboard until those features are implemented.
 - Verification: API and web ESLint and TypeScript checks passed. Manual browser interaction has not yet been verified.
+
+### Event management
+
+- Implemented the Stitch Events overview and mobile layout with All, Upcoming, Past, and Archived filters, event search, chronological event cards, and an empty state with ceremony quick-add chips.
+- Added create and edit forms for event name, date, local start time, venue name/address, city, and optional notes. Times use the wedding timezone (onboarding currently configures IST).
+- Added a confirmation flow and soft archive action. Archived events remain stored with their details and notes, can be viewed through the Archived filter, and can be restored to active planning.
+- Added authenticated, wedding-scoped status filtering for `GET /events`, archive via `DELETE /events/:eventId`, and restore via `POST /events/:eventId/unarchive`.
+- Aligned event action controls within the event card on desktop and mobile layouts.
+- Refined event-card surfaces and hover/focus states to better match Stitch, and added a venue overview and itinerary summary derived from saved active events.
+- Added a working event sort menu with Earliest first and Latest first options; the selected order updates the event list, and the menu closes on outside click or Escape.
+- Added optional Indian wedding event name suggestions (Engagement, Roka, Haldi, Mehendi, Sangeet, Muhurtham, Wedding Ceremony, and Reception) to the create- and edit-event forms; selecting one fills the editable name field, and custom event names remain supported.
+- Improved create/edit dialog context and notes character count; archive confirmation now gives an event summary and explains that restore is available from the Archived filter. Ceremony labels remain based on event name/status because the V1 event model has no category or primary-ceremony field.
+- Verification: web ESLint and TypeScript checks passed after the design refinements. Manual browser interaction has not yet been verified.
+
+### Member and invitation management
+
+- Added the Team workspace with active-member and pending-invitation lists, Admin slot usage, role guidance, and member actions.
+- Added authenticated APIs for listing members/invitations, creating and resending invitations, revoking invitations, accepting an invitation, and removing workspace membership. Invitations use seven-day random tokens; MongoDB stores only token hashes, and acceptance requires a signed-in account whose normalized email matches the invitation.
+- Enforced the V1 Admin/Organiser permissions and two-Admin limit. Admins may remove active members except the workspace creator; Organisers cannot manage team membership. Removal marks membership `REMOVED` while retaining the user account and wedding records.
+- Invitation email delivery uses Resend. Provider submission acceptance is not proof of inbox delivery; arbitrary recipients require a verified sender domain.
+- Invitation links now make sign-in the primary path for existing accounts. The invited email is prefilled; choosing sign-up with an existing email redirects to sign-in while preserving the invitation return URL. After sign-in, the recipient returns to the invitation review and accepts it while authenticated.
+- The sidebar team count loads with workspace data and shows a loading indicator until the member request completes.
+- Verification: API and web ESLint and TypeScript checks passed. All API tests passed (3 files, 3 tests), including Mongo-backed authentication and membership invitation integration coverage. Manual browser acceptance of invitation links has not yet been verified end to end.
 
 ## In progress
 
@@ -50,26 +74,26 @@ This file tracks delivery progress. It is not a replacement for the approved pro
 - Added a direct **Sign in** link beside **Start planning** in the public homepage header; **Start planning** opens sign-up.
 - Forms submit to the documented `/auth/login` and `/auth/signup` API endpoints and expect an HttpOnly session cookie. Password recovery uses the documented `/auth/password-reset/request` route.
 - Successful sign-in and sign-up now open a welcome page that reads the current account from `/auth/me`; guests are redirected to sign-in. The welcome page's sign-out action revokes the current server session, clears the HttpOnly browser cookie, and verifies that `/auth/me` returns `401` before returning home.
-- Visiting sign-in or sign-up with a valid existing session redirects to the welcome page before rendering the auth form.
+- Visiting sign-in or sign-up with a valid existing session redirects to the welcome page before rendering the auth form, unless a safe invitation return path is present, in which case the user returns to that invitation.
 - Reworked the form-and-workspace split layout to match Stitch, including the editorial headline, warm dotted canvas, sample dashboard preview, input focus treatment, and responsive layout. The preview is explicitly illustrative and avoids out-of-scope budget/escrow or live-sync claims.
 - Added Express routes for signup, login, logout, current account, and password reset request/confirmation. User, session, password-reset token, and membership Mongoose models use the collections and constraints from the database design. Sessions and reset tokens are random opaque values whose hashes are stored in MongoDB; passwords are hashed with scrypt.
 - API startup now requires MongoDB, initializes the core indexes, and fails clearly when configuration or connectivity is missing. Auth endpoints use Zod validation, generic login/reset responses, origin checks, secure HttpOnly cookies, and MongoDB-backed attempt limits.
-- Password reset delivery requires `RESEND_API_KEY` and `RESEND_FROM_EMAIL`; keep delivery unconfigured until the missing `/reset-password` page is implemented. Wedding creation, invitation acceptance, authorization middleware, and protected workspace routes remain future backend work.
+- Password reset delivery requires `RESEND_API_KEY` and `RESEND_FROM_EMAIL`; reset completion UI and email delivery still require further implementation and verification. Wedding creation, invitation acceptance, authorization middleware, and protected workspace routes are implemented.
 - Signup and password reset require a password of at least 12 characters. Verification: web ESLint and TypeScript checks passed; the API health and authentication integration tests passed against the configured MongoDB database, including signup, login, password reset, session invalidation, and logout.
 - Known source-document mismatch: the API and database designs specify Express/MongoDB, while the system architecture document still specifies Spring Boot/PostgreSQL. This implementation follows the user instruction and the API/database designs; reconciling that architecture document remains open.
 - Manual browser verification on localhost:3000: created a fresh dummy account with a valid password, confirmed signup signs in, session survives reload, login accepts case-insensitive email and rejects password case changes, and logout disables repeated clicks, returns home, and invalidates direct `/welcome` access. Checked required signup/login fields, malformed email, password mismatch, duplicate signup emails, unknown account, wrong password, and show/hide password. Invalid credentials use a generic message; server-side signup password errors explain the 12-character minimum. Authentication remains in progress because the user-facing password recovery completion page and broader protected workspace routes are outstanding.
 
 ## Current state
 
-The repository scaffold, public homepage, signup/login/session flow, first wedding onboarding flow, and initial wedding dashboard are implemented. Password-reset completion UI and the remaining protected workspace modules are still outstanding.
+The repository scaffold, public homepage, signup/login/session flow, first wedding onboarding flow, initial wedding dashboard, event management, and member/invitation management are implemented. Password-reset completion UI and the remaining protected workspace modules are still outstanding.
 
 ## Planned V1 milestones
 
-Follow the sequencing in the approved documents and README. After the authentication UI, continue the current account milestone with API-backed authentication, sessions, and route protection, then proceed to:
+Follow the sequencing in the approved documents and README. Authentication, sessions, route protection, wedding onboarding, event management, and member invitations are implemented. Remaining work includes:
 
-1. Authentication, sessions, authorization, and wedding scoping.
-2. Wedding, event, task, and expense management.
-3. Guests, invitations, RSVP, and email campaigns.
+1. Complete and verify password recovery, including the reset page and email delivery.
+2. Task and expense management.
+3. Guest records, guest invitations, RSVP, and email campaigns.
 4. Wedding website publishing, livestream, and moderated photo sharing.
 5. Vendor management and nearby vendor discovery, followed by security hardening.
 

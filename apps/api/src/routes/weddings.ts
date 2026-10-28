@@ -119,17 +119,29 @@ weddingsRouter.post("/events", async (request, response, next) => {
         { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
       )
       : await Event.create(eventData);
-    response.status(201).json({ data: { event: { id: String(event._id), name: event.name, startsAt: event.startsAt, timeZone: event.timeZone, venue: event.venue } } });
+    response.status(201).json({ data: { event: { id: String(event._id), name: event.name, startsAt: event.startsAt, timeZone: event.timeZone, venue: event.venue, description: event.description, status: event.status } } });
   } catch (error) { next(error); }
 });
 
 weddingsRouter.get("/events", async (request, response, next) => {
   try {
     const user = await authenticatedUser(request);
+    const parsedStatus = z.enum(["ALL", "UPCOMING", "PAST", "ARCHIVED"]).safeParse(request.query.status ?? "ALL");
+    if (!parsedStatus.success) { reportValidation(response, parsedStatus.error.issues); return; }
     const membership = await WeddingMembership.findOne({ userId: user._id, status: "ACTIVE" }).select("weddingId").lean();
     if (!membership) throw new AppError(403, "FORBIDDEN", "Create a wedding before viewing events.");
-    const events = await Event.find({ weddingId: membership.weddingId, status: "ACTIVE" }).sort({ startsAt: 1 }).lean();
-    response.status(200).json({ data: { events: events.map((event) => ({ id: String(event._id), name: event.name, startsAt: event.startsAt, endsAt: event.endsAt, timeZone: event.timeZone, venue: event.venue, description: event.description })) } });
+    const now = new Date();
+    const filter = parsedStatus.data === "ARCHIVED"
+      ? { weddingId: membership.weddingId, status: "ARCHIVED" as const }
+      : parsedStatus.data === "UPCOMING"
+        ? { weddingId: membership.weddingId, status: "ACTIVE" as const, startsAt: { $gte: now } }
+        : parsedStatus.data === "PAST"
+          ? { weddingId: membership.weddingId, status: "ACTIVE" as const, startsAt: { $lt: now } }
+          : parsedStatus.data === "ALL"
+            ? { weddingId: membership.weddingId }
+            : { weddingId: membership.weddingId, status: "ACTIVE" as const };
+    const events = await Event.find(filter).sort({ startsAt: 1 }).lean();
+    response.status(200).json({ data: { events: events.map((event) => ({ id: String(event._id), name: event.name, startsAt: event.startsAt, endsAt: event.endsAt, timeZone: event.timeZone, venue: event.venue, description: event.description, status: event.status })) } });
   } catch (error) { next(error); }
 });
 
@@ -152,7 +164,33 @@ weddingsRouter.patch("/events/:eventId", async (request, response, next) => {
     if (parsed.data.description !== undefined) current.description = parsed.data.description;
     if (current.endsAt && current.endsAt <= current.startsAt) throw new AppError(422, "BUSINESS_RULE_VIOLATION", "The event end time must be after its start time.");
     await current.save();
-    response.status(200).json({ data: { event: { id: String(current._id), name: current.name, startsAt: current.startsAt, endsAt: current.endsAt, timeZone: current.timeZone, venue: current.venue, description: current.description } } });
+    response.status(200).json({ data: { event: { id: String(current._id), name: current.name, startsAt: current.startsAt, endsAt: current.endsAt, timeZone: current.timeZone, venue: current.venue, description: current.description, status: current.status } } });
+  } catch (error) { next(error); }
+});
+
+weddingsRouter.delete("/events/:eventId", async (request, response, next) => {
+  try {
+    const user = await authenticatedUser(request);
+    const id = z.string().regex(/^[a-f\d]{24}$/i).safeParse(request.params.eventId);
+    if (!id.success) { reportValidation(response, id.error.issues); return; }
+    const membership = await WeddingMembership.findOne({ userId: user._id, status: "ACTIVE" }).select("weddingId").lean();
+    if (!membership) throw new AppError(403, "FORBIDDEN", "Create a wedding before archiving events.");
+    const event = await Event.findOneAndUpdate({ _id: id.data, weddingId: membership.weddingId, status: "ACTIVE" }, { $set: { status: "ARCHIVED" } }, { new: true, runValidators: true });
+    if (!event) throw new AppError(404, "NOT_FOUND", "Event not found.");
+    response.status(200).json({ data: { event: { id: String(event._id), status: event.status } } });
+  } catch (error) { next(error); }
+});
+
+weddingsRouter.post("/events/:eventId/unarchive", async (request, response, next) => {
+  try {
+    const user = await authenticatedUser(request);
+    const id = z.string().regex(/^[a-f\d]{24}$/i).safeParse(request.params.eventId);
+    if (!id.success) { reportValidation(response, id.error.issues); return; }
+    const membership = await WeddingMembership.findOne({ userId: user._id, status: "ACTIVE" }).select("weddingId").lean();
+    if (!membership) throw new AppError(403, "FORBIDDEN", "Create a wedding before restoring events.");
+    const event = await Event.findOneAndUpdate({ _id: id.data, weddingId: membership.weddingId, status: "ARCHIVED" }, { $set: { status: "ACTIVE" } }, { new: true, runValidators: true });
+    if (!event) throw new AppError(404, "NOT_FOUND", "Archived event not found.");
+    response.status(200).json({ data: { event: { id: String(event._id), status: event.status } } });
   } catch (error) { next(error); }
 });
 

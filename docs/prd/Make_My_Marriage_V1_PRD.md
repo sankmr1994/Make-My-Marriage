@@ -198,7 +198,7 @@ V1 uses three roles only. This is a deliberate simplification intended to keep a
 
 ## 5.1 Admin vs Organiser rule
 
-Admin and Organiser have comparable operational access for V1. The key difference is organisational authority: Admin can add and remove Organisers; Organiser cannot create, remove, or manage Organiser membership.
+Admin and Organiser have comparable operational access for V1. The key difference is organisational authority: Admin can invite members and remove any active member, including the partner Admin, except the wedding workspace creator. Organisers cannot invite or remove members. Removing a member revokes only that wedding workspace membership; it does not delete the person's account or wedding records.
 
 ## 5.2 Guest access principle
 
@@ -289,9 +289,11 @@ Recommended primary navigation:
 |-----------|----------------------------------------------------------------------------|
 | FR-COL-01 | Admin can invite a collaborator as Organiser.                              |
 | FR-COL-02 | Invited Organiser completes account creation before accessing the wedding. |
-| FR-COL-03 | Admin can remove an Organiser from the wedding.                            |
-| FR-COL-04 | Organiser cannot add, remove, or manage Organisers.                        |
+| FR-COL-03 | Admin can remove any active member other than the wedding workspace creator, including the partner Admin. |
+| FR-COL-04 | Organiser cannot invite or remove members.                                  |
 | FR-COL-05 | The system enforces permissions on both UI and API/service layers.         |
+| FR-COL-06 | An Admin can invite the other partner as a second Admin; a wedding has at most two Admins. |
+| FR-COL-07 | The wedding creator's membership cannot be removed by any member. Removing another member revokes workspace access without deleting the account or wedding records. |
 
 ## 7.5 Task Management
 
@@ -641,7 +643,8 @@ V1 should measure whether families successfully complete the core wedding journe
 
 - Admin and Organiser see appropriate modules and permissions; Guest cannot enter authenticated management routes.
 
-- Admin can add/remove Organisers; Organiser cannot perform these actions.
+- Admin can invite members and remove any member except the wedding creator; Organiser cannot manage membership.
+- No member can remove the wedding creator, and removing another member preserves their account and wedding records while revoking workspace access.
 
 - An event can be created and then used as context for tasks, guests, expenses, vendors, and website content.
 
@@ -715,7 +718,7 @@ V1 should measure whether families successfully complete the core wedding journe
 | **Decision**               | **What must be finalized**                                                                                                 |
 |----------------------------|----------------------------------------------------------------------------------------------------------------------------|
 | Account onboarding         | Exact sign-up fields and whether phone number is required, optional, or used only for recovery.                            |
-| Admin membership           | Confirm the onboarding flow for Bride and Groom as co-admins, including how the second Admin is invited/claimed.           |
+| Admin membership           | Resolved: the first wedding creator is Admin; an Admin may invite the partner as the second Admin, with a maximum of two Admins per wedding. |
 | Guest identity             | Whether a guest RSVP token is single-use, revocable, or reusable for future edits.                                         |
 | Website URL                | Choose generated URL format, slug rules, custom domain support policy (V1 likely not included), and unpublishing behavior. |
 | Theme content model        | Finalize the four Indian themes and the common content fields required by all themes.                                      |

@@ -5,6 +5,7 @@ export type WeddingMembershipDocument = {
   userId: Types.ObjectId;
   role: "ADMIN" | "ORGANISER";
   status: "ACTIVE" | "REMOVED";
+  invitedByUserId?: Types.ObjectId;
   joinedAt: Date;
   removedAt?: Date;
   createdAt: Date;
@@ -16,6 +17,7 @@ const membershipSchema = new Schema<WeddingMembershipDocument>({
   userId: { type: Schema.Types.ObjectId, required: true, ref: "User" },
   role: { type: String, required: true, enum: ["ADMIN", "ORGANISER"] },
   status: { type: String, required: true, enum: ["ACTIVE", "REMOVED"] },
+  invitedByUserId: { type: Schema.Types.ObjectId, ref: "User" },
   joinedAt: { type: Date, required: true },
   removedAt: { type: Date }
 }, { timestamps: true, collection: "weddingMemberships" });

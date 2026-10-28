@@ -18,7 +18,7 @@ The design preserves these product decisions:
 
 - One active wedding membership per user account.
 - Three product roles: `ADMIN`, `ORGANISER`, and accountless `GUEST`.
-- Admins can add and remove Organisers; Organisers cannot manage organiser membership.
+- Admins can invite members and remove active members except the wedding creator; Organisers cannot manage membership.
 - Guest operations use scoped links/QR codes and do not require a Make My Marriage account.
 - Events, tasks, expenses, guests, vendors, invitations, RSVPs, website content, livestream configuration, and photos are scoped to a wedding.
 - Vendor-to-event, vendor-to-task, and vendor-to-expense links are supported.
@@ -173,7 +173,7 @@ Rules:
 
 - Create the first Admin membership when a user creates a wedding.
 - The second Admin can be added through a controlled partner/Admin invitation flow; the intended product maximum is two Admin memberships (bride and groom). Enforce this in the service layer and transaction, because a normal unique index cannot enforce a maximum count of two.
-- Admins can invite/remove Organisers. Organisers cannot create, revoke or manage organiser membership.
+- Admins can remove any active member except the wedding creator, including the partner Admin. Organisers cannot manage membership. Removal sets the membership to `REMOVED`; it does not delete the user account or wedding-scoped records.
 - A user can have at most one active wedding membership. Enforce via a unique partial index on `userId` for documents where `status: ACTIVE`.
 - A membership's `userId` must be active and `weddingId` must be active.
 
@@ -190,6 +190,7 @@ One document per invite token, including reissued invitations.
 | `invitedByUserId` | ObjectId | Yes | Must be an Admin for an Organiser invitation; partner flow is separately controlled |
 | `tokenHash` | string | Yes | Hash of cryptographically random token; unique index |
 | `status` | enum | Yes | `PENDING`, `ACCEPTED`, `REVOKED`, `EXPIRED` |
+| `emailSubmissionStatus` | enum | Yes | `ACCEPTED`, `FAILED`, `NOT_CONFIGURED`; provider acceptance is not proof of inbox delivery |
 | `expiresAt` | Date | Yes | Always check explicitly in the API; TTL cleanup is asynchronous |
 | `acceptedByUserId` | ObjectId | No | Set on acceptance |
 | `acceptedAt` | Date | No |  |
@@ -524,6 +525,8 @@ Create indexes through versioned setup/migration scripts. Avoid relying only on 
 | `weddingMemberships` | `{ weddingId: 1, status: 1, role: 1 }` | Load active Admins/Organisers |
 | `membershipInvitations` | Unique `{ tokenHash: 1 }` | Resolve token securely |
 | `membershipInvitations` | `{ weddingId: 1, emailNormalized: 1, status: 1 }` | Find/reissue pending invitation |
+| `membershipInvitations` | Unique partial `{ weddingId: 1, emailNormalized: 1 }` where status is `PENDING` | Prevent duplicate pending invitations |
+| `membershipInvitations` | Unique partial `{ weddingId: 1, role: 1 }` where role is `ADMIN` and status is `PENDING` | Reserve at most one pending partner/Admin invitation |
 | `membershipInvitations` | TTL `{ expiresAt: 1 }` (if old records may be removed) | Cleanup only; API still checks expiry |
 | `events` | `{ weddingId: 1, status: 1, startsAt: 1 }` | Active upcoming events |
 | `events` | Unique partial `{ weddingId: 1, clientEventId: 1 }` where `clientEventId` is a string | Idempotent onboarding event saves |
@@ -767,7 +770,7 @@ These are not new feature additions; they are constraints inherited from the app
 
 - No email verification at signup. Login and password recovery still require appropriate controls.
 - Organiser invitations use secure, expiring tokens; no wedding code/number is used.
-- Only Admin can add/remove Organisers. Admin/Organiser manage normal wedding operations.
+- Only Admin can remove active members, and the wedding creator is protected from removal by every member. Removal revokes the membership without deleting the user's account or wedding records.
 - Guest access stays separate from logged-in account membership.
 - All wedding-owned documents carry `weddingId` and must be queried within that scope.
 - Four theme definitions stay in application code; database stores the selected `themeCode` and version.
