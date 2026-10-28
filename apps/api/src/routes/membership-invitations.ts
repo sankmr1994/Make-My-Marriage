@@ -66,7 +66,7 @@ async function submitInvitationEmail(input: { email: string; token: string; role
       headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
       signal: AbortSignal.timeout(8_000),
       body: JSON.stringify({ from: env.RESEND_FROM_EMAIL, to: [input.email], subject: `Invitation to join ${couple}'s wedding team`, html })
-    });
+    }) as unknown as { ok: boolean; status: number; json: () => Promise<unknown> };
     if (result.ok) return "ACCEPTED" as const;
 
     const providerError = await result.json().catch(() => null) as { name?: unknown; message?: unknown } | null;

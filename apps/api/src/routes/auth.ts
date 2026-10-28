@@ -156,7 +156,7 @@ authRouter.post("/auth/password-reset/request", async (request, response, next) 
           method: "POST",
           headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify({ from: env.RESEND_FROM_EMAIL, to: [user.email], subject: "Reset your Make My Marriage password", html: `<p>Use this link to reset your password. It expires in 30 minutes.</p><p><a href="${resetUrl.toString()}">Reset password</a></p>` })
-        });
+        }) as unknown as { ok: boolean };
         if (!sent.ok) throw new Error("email_delivery_failed");
       } catch {
         await PasswordResetToken.deleteOne({ tokenHash: hashOpaqueToken(token) });
