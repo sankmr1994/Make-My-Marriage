@@ -43,6 +43,13 @@ This file tracks delivery progress. It is not a replacement for the approved pro
 - Kept task, expense, guest, vendor, website, livestream, and photo modules out of the interactive dashboard until those features are implemented.
 - Verification: API and web ESLint and TypeScript checks passed. Manual browser interaction has not yet been verified.
 
+### Dashboard visual alignment
+
+- Refined the implemented dashboard against the approved Stitch V1 dashboard reference without presenting unbuilt modules as working features.
+- Added the Stitch-inspired workspace header, a desktop sidebar **Create event** action, a structured wedding overview, real-data dashboard metrics, and an upcoming-ceremonies module.
+- Dashboard values are derived only from the current wedding, authenticated role, and event APIs. Task, guest/RSVP, expense, vendor, website, livestream, and photo dashboard modules remain deferred until their associated V1 capabilities exist.
+- Verification: web ESLint and TypeScript checks passed. The local `next build` attempt was blocked by a Next.js/Turbopack CSS-worker startup failure in this environment; it did not report a TypeScript or stylesheet syntax error. Manual browser verification remains pending.
+
 ### Event management
 
 - Implemented the Stitch Events overview and mobile layout with All, Upcoming, Past, and Archived filters, event search, chronological event cards, and an empty state with ceremony quick-add chips.
