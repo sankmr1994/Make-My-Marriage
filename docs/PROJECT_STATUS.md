@@ -1,6 +1,6 @@
 # Project Status
 
-**Last updated:** 2026-10-28
+**Last updated:** 2026-10-29
 **Product scope source:** The approved V1 documents in `docs/prd/`, `docs/architecture/`, `docs/database/`, and `docs/api/`.
 
 This file tracks delivery progress. It is not a replacement for the approved product requirements.
@@ -40,14 +40,14 @@ This file tracks delivery progress. It is not a replacement for the approved pro
 - Added separate Dashboard, My Wedding, and Events views in the sidebar, matching Stitch’s section-based navigation. Dashboard shows an overview; wedding details and the full event schedule live in their respective views.
 - Displays the saved couple names, wedding date/countdown, location, and onboarding events; an empty state is shown when no events were added.
 - Added working edit dialogs for wedding details and each event, persisted through authenticated, wedding-scoped `PATCH /weddings/current` and `PATCH /events/:eventId` APIs. Added authenticated `GET /events` for the timeline.
-- Kept task, expense, guest, vendor, website, livestream, and photo modules out of the interactive dashboard until those features are implemented.
+- Initially kept task, expense, guest, vendor, website, livestream, and photo modules out of the interactive dashboard; Task Management has since been implemented below, while the other modules remain deferred.
 - Verification: API and web ESLint and TypeScript checks passed. Manual browser interaction has not yet been verified.
 
 ### Dashboard visual alignment
 
 - Refined the implemented dashboard against the approved Stitch V1 dashboard reference without presenting unbuilt modules as working features.
 - Added the Stitch-inspired workspace header, a desktop sidebar **Create event** action, a structured wedding overview, real-data dashboard metrics, and an upcoming-ceremonies module.
-- Dashboard values are derived only from the current wedding, authenticated role, and event APIs. Task, guest/RSVP, expense, vendor, website, livestream, and photo dashboard modules remain deferred until their associated V1 capabilities exist.
+- Dashboard values are derived only from implemented, authenticated workspace data. The task summary now uses persisted task data; guest/RSVP, expense, vendor, website, livestream, and photo dashboard modules remain deferred until their associated V1 capabilities exist.
 - Verification: web ESLint and TypeScript checks passed. The local `next build` attempt was blocked by a Next.js/Turbopack CSS-worker startup failure in this environment; it did not report a TypeScript or stylesheet syntax error. Manual browser verification remains pending.
 
 ### Event management
@@ -63,6 +63,15 @@ This file tracks delivery progress. It is not a replacement for the approved pro
 - Improved create/edit dialog context and notes character count; archive confirmation now gives an event summary and explains that restore is available from the Archived filter. Ceremony labels remain based on event name/status because the V1 event model has no category or primary-ceremony field.
 - Verification: web ESLint and TypeScript checks passed after the design refinements. Manual browser interaction has not yet been verified.
 
+### Task management
+
+- Implemented the full responsive Task Management workspace from the approved Stitch desktop and mobile references: status summary cards, search and local filters, grouped overdue/upcoming/completed task lists, quick-start templates, edit controls, status updates, and a deliberate permanent-delete confirmation.
+- Added create/edit task forms with required task name, optional plain-text description and coordination notes, active-member assignment, optional IST due date, priority, optional active-event link, and the three V1 statuses: Not Started, In Progress, and Completed.
+- Added authenticated, wedding-scoped `GET`, `POST`, `PATCH`, and `DELETE /tasks` APIs; Zod validates payloads and query filters, Mongoose validates persisted documents, and the server verifies that an assignee and linked event belong to the current wedding. Task records use the documented dashboard/status, assignee/status, and event/status indexes.
+- The Stitch form's Vendor area is represented as an honest disabled notice because vendor records are not implemented yet. The design's SMS/WhatsApp notification suggestion was intentionally omitted: task reminders and automated notification claims are out of V1 scope.
+- The dashboard now uses real task counts and overdue status, and its Tasks navigation opens the working task board. No illustrative task totals are treated as backend data.
+- Verification: API and web ESLint and TypeScript checks passed. All API tests passed (4 files, 4 tests); Mongo-backed task coverage includes task creation, priority filtering, status/assignee update, and permanent deletion. Manual browser and mobile viewport verification remain pending.
+
 ### Member and invitation management
 
 - Added the Team workspace with active-member and pending-invitation lists, Admin slot usage, role guidance, and member actions.
@@ -71,7 +80,7 @@ This file tracks delivery progress. It is not a replacement for the approved pro
 - Invitation email delivery uses Resend. Provider submission acceptance is not proof of inbox delivery; arbitrary recipients require a verified sender domain.
 - Invitation links now make sign-in the primary path for existing accounts. The invited email is prefilled; choosing sign-up with an existing email redirects to sign-in while preserving the invitation return URL. After sign-in, the recipient returns to the invitation review and accepts it while authenticated.
 - The sidebar team count loads with workspace data and shows a loading indicator until the member request completes.
-- Verification: API and web ESLint and TypeScript checks passed. All API tests passed (3 files, 3 tests), including Mongo-backed authentication and membership invitation integration coverage. Manual browser acceptance of invitation links has not yet been verified end to end.
+- Verification: API and web ESLint and TypeScript checks passed. All API tests passed (now 4 files, 4 tests), including Mongo-backed authentication and membership invitation integration coverage. Manual browser acceptance of invitation links has not yet been verified end to end.
 
 ## In progress
 
@@ -92,14 +101,14 @@ This file tracks delivery progress. It is not a replacement for the approved pro
 
 ## Current state
 
-The repository scaffold, public homepage, signup/login/session flow, first wedding onboarding flow, initial wedding dashboard, event management, and member/invitation management are implemented. Password-reset completion UI and the remaining protected workspace modules are still outstanding.
+The repository scaffold, public homepage, signup/login/session flow, first wedding onboarding flow, dashboard, event management, task management, and member/invitation management are implemented. Password-reset completion UI and the remaining protected workspace modules are still outstanding.
 
 ## Planned V1 milestones
 
-Follow the sequencing in the approved documents and README. Authentication, sessions, route protection, wedding onboarding, event management, and member invitations are implemented. Remaining work includes:
+Follow the sequencing in the approved documents and README. Authentication, sessions, route protection, wedding onboarding, event management, task management, and member invitations are implemented. Remaining work includes:
 
 1. Complete and verify password recovery, including the reset page and email delivery.
-2. Task and expense management.
+2. Expense management.
 3. Guest records, guest invitations, RSVP, and email campaigns.
 4. Wedding website publishing, livestream, and moderated photo sharing.
 5. Vendor management and nearby vendor discovery, followed by security hardening.
