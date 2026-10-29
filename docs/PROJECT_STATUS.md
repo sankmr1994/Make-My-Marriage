@@ -72,6 +72,15 @@ This file tracks delivery progress. It is not a replacement for the approved pro
 - The dashboard now uses real task counts and overdue status, and its Tasks navigation opens the working task board. No illustrative task totals are treated as backend data.
 - Verification: API and web ESLint and TypeScript checks passed. All API tests passed (4 files, 4 tests); Mongo-backed task coverage includes task creation, priority filtering, status/assignee update, and permanent deletion. Manual browser and mobile viewport verification remain pending.
 
+### Expense management
+
+- Implemented the V1 Expense Ledger from the approved Stitch desktop and mobile references: responsive summary cards, search and filters, empty state quick-starts, ledger rows, create/edit form, and permanent-delete confirmation.
+- The main Dashboard now reads the same authenticated Expense API and shows live recorded, paid, and unpaid totals with a direct link to the Expense Ledger.
+- Added authenticated, wedding-scoped `GET`, `POST`, `PATCH`, and `DELETE /expenses` APIs. Zod validates requests, Mongoose validates persisted records, and linked events are verified as active records in the current wedding.
+- Expense records use the approved V1 fields: description, rounded whole-INR `amountRupees`, category, optional linked event, `PAID` or `UNPAID` payment status, payment date, payer name, and notes. API amounts are rounded to the nearest rupee before persistence and values below ₹1 are rejected.
+- Deliberately omitted the Stitch concept's partial payments, outstanding balances, payment due dates, advances/installments, CSV export, and all budget behaviour because they are outside the approved V1 scope. Ledger totals are calculated from the actual expense records.
+- Verification: API and web TypeScript and ESLint checks passed. Full API suite passed (5 files, 5 tests), including Mongo-backed expense coverage for creation, filtering, whole-rupee rounding, updating, totals, and permanent deletion. Manual browser and mobile viewport verification remain pending.
+
 ### Member and invitation management
 
 - Added the Team workspace with active-member and pending-invitation lists, Admin slot usage, role guidance, and member actions.
@@ -101,17 +110,16 @@ This file tracks delivery progress. It is not a replacement for the approved pro
 
 ## Current state
 
-The repository scaffold, public homepage, signup/login/session flow, first wedding onboarding flow, dashboard, event management, task management, and member/invitation management are implemented. Password-reset completion UI and the remaining protected workspace modules are still outstanding.
+The repository scaffold, public homepage, signup/login/session flow, first wedding onboarding flow, dashboard, event management, task management, expense management, and member/invitation management are implemented. Password-reset completion UI and the remaining protected workspace modules are still outstanding.
 
 ## Planned V1 milestones
 
 Follow the sequencing in the approved documents and README. Authentication, sessions, route protection, wedding onboarding, event management, task management, and member invitations are implemented. Remaining work includes:
 
 1. Complete and verify password recovery, including the reset page and email delivery.
-2. Expense management.
-3. Guest records, guest invitations, RSVP, and email campaigns.
-4. Wedding website publishing, livestream, and moderated photo sharing.
-5. Vendor management and nearby vendor discovery, followed by security hardening.
+2. Guest records, guest invitations, RSVP, and email campaigns.
+3. Wedding website publishing, livestream, and moderated photo sharing.
+4. Vendor management and nearby vendor discovery, followed by security hardening.
 
 These are planned, not completed, until implemented and verified.
 

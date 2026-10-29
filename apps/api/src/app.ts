@@ -9,6 +9,7 @@ import { authRouter } from "./routes/auth.js";
 import { weddingsRouter } from "./routes/weddings.js";
 import { membershipInvitationsRouter } from "./routes/membership-invitations.js";
 import { tasksRouter } from "./routes/tasks.js";
+import { expensesRouter } from "./routes/expenses.js";
 
 const require = createRequire(import.meta.url);
 const helmet = require("helmet") as typeof import("helmet").default;
@@ -25,6 +26,7 @@ app.use("/api/v1", authRouter);
 app.use("/api/v1", weddingsRouter);
 app.use("/api/v1", membershipInvitationsRouter);
 app.use("/api/v1", tasksRouter);
+app.use("/api/v1", expensesRouter);
 app.use(errorHandler);
 
 export default app;

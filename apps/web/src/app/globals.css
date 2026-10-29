@@ -1,5 +1,60 @@
 @import "tailwindcss";
 
+.workspace-expenses { display: grid; gap: 1.35rem; }
+.workspace-expenses-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; padding: .55rem 0 1.45rem; border-bottom: 1px solid #dedbd2; }
+.workspace-expenses-heading .workspace-eyebrow { margin: 0 0 .65rem; }
+.workspace-expenses-heading h1 { margin: 0; font-family: var(--display); font-size: clamp(2.2rem, 4.6vw, 3.3rem); font-weight: 400; letter-spacing: -.045em; }
+.workspace-expenses-heading p:not(.workspace-eyebrow) { max-width: 670px; margin: .55rem 0 0; color: #6e7068; font-size: .82rem; line-height: 1.6; }
+.workspace-expenses-heading .button { display: inline-flex; min-height: 44px; align-items: center; gap: .45rem; white-space: nowrap; cursor: pointer; }
+.workspace-expense-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .8rem; }
+.workspace-expense-metrics article { display: grid; min-height: 132px; align-content: start; gap: .35rem; padding: 1rem 1.1rem; border: 1px solid #dedbd2; background: #fffefa; }
+.workspace-expense-metrics span { color: #6e7068; font-size: .6rem; font-weight: 700; letter-spacing: .08em; }
+.workspace-expense-metrics strong { margin-top: .45rem; font-family: var(--display); font-size: clamp(1.55rem, 3vw, 2.05rem); font-weight: 400; line-height: 1; font-variant-numeric: tabular-nums; }
+.workspace-expense-metrics small { padding-top: .45rem; border-top: 1px solid #eeece6; color: #73756c; font-size: .65rem; }
+.workspace-expense-metrics .is-paid strong { color: #59614e; }
+.workspace-expense-filters { display: flex; flex-wrap: wrap; align-items: center; gap: .55rem; padding: .9rem; border: 1px solid #dedbd2; background: #f5f3ee; }
+.workspace-expense-filters select, .workspace-expense-search { min-height: 40px; border: 1px solid #d5d3ca; border-radius: 2px; background: #fffefa; color: #454842; font: inherit; font-size: .68rem; }
+.workspace-expense-filters select { padding: 0 .65rem; }
+.workspace-expense-search { display: flex; min-width: min(100%, 260px); flex: 1 1 300px; align-items: center; gap: .5rem; padding: 0 .7rem; color: #747c68; }
+.workspace-expense-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: #30332c; font: inherit; font-size: .7rem; }
+.workspace-expense-search:focus-within, .workspace-expense-filters select:focus { outline: 2px solid #747c68; outline-offset: 2px; }
+.workspace-expense-list { overflow: hidden; border: 1px solid #dedbd2; background: #fffefa; }
+.workspace-expense-list > header, .workspace-expense-list > article { display: grid; grid-template-columns: minmax(170px, 1.65fr) minmax(100px, 1fr) minmax(100px, .9fr) minmax(110px, 1fr) minmax(110px, .8fr) minmax(85px, .7fr) minmax(110px, .9fr) auto; align-items: center; gap: .7rem; min-width: 1060px; padding: .9rem 1rem; }
+.workspace-expense-list > header { overflow-x: auto; color: #73756c; font-size: .56rem; font-weight: 700; letter-spacing: .08em; }
+.workspace-expense-list > article { border-top: 1px solid #eeece6; color: #62645d; font-size: .67rem; }
+.workspace-expense-list > article:hover { background: #f8f7f2; }
+.workspace-expense-list > article > div:first-child { display: grid; gap: .22rem; min-width: 0; }
+.workspace-expense-list > article > div:first-child strong { overflow: hidden; color: #292c26; font-size: .75rem; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-expense-list > article small { overflow: hidden; color: #85877e; font-size: .6rem; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-expense-category { width: fit-content; padding: .2rem .4rem; border: 1px solid #e0ded6; background: #f1f0eb; color: #565950; font-size: .56rem; }
+.workspace-expense-amount { color: #31342e; font-size: .72rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.workspace-expense-status { display: inline-flex; width: fit-content; align-items: center; gap: .25rem; padding: .25rem .45rem; border: 1px solid #dedbd2; border-radius: 999px; font-size: .55rem; font-weight: 700; white-space: nowrap; }
+.workspace-expense-status.is-paid { border-color: #d3dbc8; background: #e7ece1; color: #59614e; }
+.workspace-expense-status.is-unpaid { background: #f2f0eb; color: #65675f; }
+.workspace-expense-actions { display: flex; justify-content: end; gap: .35rem; }
+.workspace-expense-actions button { display: inline-flex; min-height: 32px; align-items: center; gap: .3rem; padding: 0 .5rem; border: 1px solid #d5d3ca; background: #fffefa; color: #454842; font: inherit; font-size: .61rem; cursor: pointer; }
+.workspace-expense-actions button:hover { border-color: #262923; background: #262923; color: #fff; }
+.workspace-expense-no-results { padding: 2rem 1rem; color: #74766e; font-size: .76rem; text-align: center; }
+.workspace-expense-empty { display: grid; justify-items: center; gap: .85rem; padding: clamp(2.2rem, 8vw, 5rem) 1.5rem; border: 1px solid #dedbd2; background: #fffefa; text-align: center; }
+.workspace-expense-empty > span { display: grid; width: 54px; height: 54px; place-items: center; border: 1px solid #d6dbce; background: #f5f3ee; color: #59614e; }
+.workspace-expense-empty h2 { margin: .2rem 0 0; font-family: var(--display); font-size: clamp(1.8rem, 3vw, 2.35rem); font-weight: 400; }
+.workspace-expense-empty > p { max-width: 570px; margin: 0; color: #6e7068; font-size: .78rem; line-height: 1.7; }
+.workspace-expense-empty .button { display: inline-flex; min-height: 44px; align-items: center; gap: .4rem; cursor: pointer; }
+.workspace-expense-empty > div { max-width: 690px; padding-top: 1.1rem; border-top: 1px solid #dedbd2; }
+.workspace-expense-empty > div p { margin: 0 0 .6rem; color: #747c68; font-size: .58rem; font-weight: 700; letter-spacing: .09em; }
+.workspace-expense-empty > div button { margin: .2rem; padding: .45rem .6rem; border: 1px solid #dedbd2; border-radius: 999px; background: #f7f5f0; color: #55584f; font-size: .65rem; cursor: pointer; }
+.workspace-expense-empty > div button:hover { border-color: #747c68; background: #e8ecdf; }
+.workspace-expense-empty > small { color: #85877e; font-size: .61rem; font-style: italic; }
+.workspace-expense-dialog { width: min(100%, 760px); }
+.workspace-expense-fields { align-items: start; }
+.workspace-expense-fields select { width: 100%; min-height: 43px; padding: .65rem .7rem; border: 1px solid #dedbd2; border-radius: 2px; background: #fff; color: var(--ink); font: inherit; font-weight: 400; }
+.workspace-expense-fields select:focus { border-color: #262923; box-shadow: 0 0 0 1px #262923; outline: none; }
+.workspace-expense-fields label small { display: block; margin-top: .3rem; color: #85877e; font-size: .57rem; font-weight: 400; letter-spacing: 0; text-transform: none; }
+.workspace-expense-scope-note { display: flex; align-items: flex-start; gap: .55rem; margin-top: 1rem; padding: .75rem; border: 1px solid #dedbd2; background: #f2f0eb; color: #65675f; font-size: .64rem; line-height: 1.5; }
+.workspace-expense-scope-note svg { flex: 0 0 auto; color: #747c68; }
+@media (max-width: 900px) { .workspace-expense-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }.workspace-expense-list { overflow-x: auto; } }
+@media (max-width: 760px) { .workspace-expenses-heading { align-items: stretch; flex-direction: column; }.workspace-expenses-heading .button { justify-content: center; min-height: 48px; }.workspace-expense-metrics { display: flex; overflow-x: auto; margin-inline: -1rem; padding-inline: 1rem; }.workspace-expense-metrics article { min-width: 160px; }.workspace-expense-filters { padding: .7rem; }.workspace-expense-filters select { flex: 1 1 calc(50% - .5rem); }.workspace-expense-search { flex-basis: 100%; }.workspace-expense-dialog { min-height: 100%; border: 0; border-radius: 0; } }
+
 /* Keep the task ownership and ceremony controls visually balanced as one planning row. */
 @media (min-width: 761px) {
   .workspace-task-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }

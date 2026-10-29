@@ -7,6 +7,7 @@ import { Wedding } from "../models/wedding.js";
 import { Event } from "../models/event.js";
 import { MembershipInvitation } from "../models/membership-invitation.js";
 import { Task } from "../models/task.js";
+import { Expense } from "../models/expense.js";
 
 export async function ensureCoreIndexes(): Promise<void> {
   await Promise.all([
@@ -18,6 +19,7 @@ export async function ensureCoreIndexes(): Promise<void> {
     Event.createIndexes(),
     MembershipInvitation.createIndexes(),
     Task.createIndexes(),
+    Expense.createIndexes(),
     AuthRateLimit.createIndexes()
   ]);
   console.info("Core account and session indexes are ready.");
