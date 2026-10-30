@@ -34,6 +34,7 @@ describeWithMongo("guest and RSVP integration", () => {
     const publicInvitation = await request(app).get(`/api/v1/guest-rsvps/${rawToken}`); expect(publicInvitation.status).toBe(200); expect(publicInvitation.body.data).toMatchObject({ status: "ACTIVE", family: { familyCount: 4 }, rsvpStatus: "PENDING" });
     const rsvp = await request(app).post(`/api/v1/guest-rsvps/${rawToken}`).send({ response: "ATTENDING" }); expect(rsvp.status).toBe(200); expect(rsvp.body.data.rsvpStatus).toBe("ATTENDING");
     const assignments = await client.get(`/api/v1/events/${event.body.data.event.id}/guest-assignments`); expect(assignments.status).toBe(200); expect(assignments.body.data.summary).toMatchObject({ families: 1, attending: 1, headcount: 4 });
+    const dashboardGuests = await client.get("/api/v1/guests"); expect(dashboardGuests.body.data.summary).toMatchObject({ families: 1, headcount: 4, attending: 1, attendingHeadcount: 4, notAttending: 0, pending: 0 });
     expect((await client.delete(`/api/v1/guests/${guest.body.data.guest.id}`)).status).toBe(200); expect((await client.get("/api/v1/guests")).body.data.summary.families).toBe(0);
     expect((await client.post("/api/v1/guests").send({ primaryContactName: "Duplicate after archive", email: "sundaram@example.test", familyCount: 2 })).status).toBe(409);
     expect((await client.get("/api/v1/guests?status=ARCHIVED")).body.data.summary.families).toBe(1);

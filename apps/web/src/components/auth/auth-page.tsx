@@ -30,8 +30,8 @@ function WorkspacePreview() {
           <div className="workspace-couple"><span className="workspace-monogram">A&amp;M</span><div><strong>Aarav &amp; Meera</strong><small><MapPin size={13} /> Coimbatore, Tamil Nadu</small></div></div>
           <span className="workspace-countdown"><CalendarDays size={15} /><b>Wedding overview</b></span>
         </div>
-        <div className="workspace-event">
-          <div className="workspace-event-meta"><span><i /> UPCOMING EVENT</span><small>DEC 12 · 06:30 PM</small></div>
+        <div className="workspace-preview-event">
+          <div className="workspace-preview-event-meta"><span><i /> UPCOMING EVENT</span><small>DEC 12 · 06:30 PM</small></div>
           <h3>Mehendi &amp; Sangeet</h3><p><MapPin size={13} /> The Tamara Courtyard</p>
         </div>
         <div className="workspace-preview-grid">
