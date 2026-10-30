@@ -81,6 +81,16 @@ This file tracks delivery progress. It is not a replacement for the approved pro
 - Deliberately omitted the Stitch concept's partial payments, outstanding balances, payment due dates, advances/installments, CSV export, and all budget behaviour because they are outside the approved V1 scope. Ledger totals are calculated from the actual expense records.
 - Verification: API and web TypeScript and ESLint checks passed. Full API suite passed (5 files, 5 tests), including Mongo-backed expense coverage for creation, filtering, whole-rupee rounding, updating, totals, and permanent deletion. Manual browser and mobile viewport verification remain pending.
 
+### Guest records and RSVP invitations (core flow)
+
+- Added the Stitch-inspired Guests & Invitations workspace with household-based guest records, family-size summary cards, ceremony assignment selection, search/filtering, edit, and archive protection. The dashboard now displays live guest-family and RSVP-pending figures from the authenticated Guest API. Guest feedback uses distinct success, warning, and error states, and the compact household editor has aligned fields and ceremony choices.
+- Added authenticated, wedding-scoped APIs for guest-family create/read/update/archive/restore, per-event guest assignment, and event RSVP summaries. Records use the approved V1 `primaryContactName`, one email per wedding, and `familyCount` fields; archived families stay in the database but are excluded from active planning. The Guests view now has an Archived families filter with a Restore action. Archived emails remain reserved to preserve invitation and RSVP history; restore and edit the original record before reusing an email for a different household.
+- Added an Admin/Organiser invitation campaign action and accountless public RSVP links. Links contain opaque random tokens, with only a token hash persisted. A public response can only update the family and ceremony encoded by that token; it cannot select another guest or event. A resend revokes the earlier active link, and invitation/reminder/RSVP routes are rate limited.
+- The invitation email states only that a provider submission was accepted or failed; it does not claim inbox delivery. The visual design’s meal preferences, blessing/notes field, provider audit claims, and automated reminder claims were excluded because they are outside approved V1 scope.
+- Verification: API and web TypeScript and ESLint checks passed. The Mongo-backed guest/RSVP integration test passed, covering household creation, duplicate-email protection, event assignment, token-scoped public RSVP, archive/restore behavior, and safe email reuse after restoring and editing the original record. Manual browser and mobile viewport verification are still pending.
+- Added CSV/XLS/XLSX guest import with a 4 MB / 1,000-row limit, required household-column validation, optional comma-separated active ceremony assignment, and row-numbered duplicate/validation feedback. Import is all-or-nothing for rows that fail pre-write validation.
+- Remaining V1 guest work: the full campaign history/dispatch review surface is not yet implemented.
+
 ### Member and invitation management
 
 - Added the Team workspace with active-member and pending-invitation lists, Admin slot usage, role guidance, and member actions.
@@ -110,14 +120,14 @@ This file tracks delivery progress. It is not a replacement for the approved pro
 
 ## Current state
 
-The repository scaffold, public homepage, signup/login/session flow, first wedding onboarding flow, dashboard, event management, task management, expense management, and member/invitation management are implemented. Password-reset completion UI and the remaining protected workspace modules are still outstanding.
+The repository scaffold, public homepage, signup/login/session flow, first wedding onboarding flow, dashboard, event management, task management, expense management, member/invitation management, and the core guest/RSVP flow with guest import are implemented. Password-reset completion UI, guest campaign history, and the remaining protected workspace modules are still outstanding.
 
 ## Planned V1 milestones
 
 Follow the sequencing in the approved documents and README. Authentication, sessions, route protection, wedding onboarding, event management, task management, and member invitations are implemented. Remaining work includes:
 
 1. Complete and verify password recovery, including the reset page and email delivery.
-2. Guest records, guest invitations, RSVP, and email campaigns.
+2. Complete guest campaign history/dispatch review.
 3. Wedding website publishing, livestream, and moderated photo sharing.
 4. Vendor management and nearby vendor discovery, followed by security hardening.
 
