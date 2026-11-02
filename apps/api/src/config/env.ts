@@ -12,9 +12,12 @@ const optionalUrl = z.preprocess(
   (value) => (value === "" ? undefined : value),
   z.url().optional()
 );
-const optionalEmail = z.preprocess(
+const optionalEmailSender = z.preprocess(
   (value) => (value === "" ? undefined : value),
-  z.string().email().optional()
+  z.string().trim().refine((value) => {
+    const match = value.match(/^(?:[^<>]+<)?([^<>\s]+@[^<>\s]+)(?:>)?$/);
+    return Boolean(match && z.email().safeParse(match[1]).success);
+  }, "Use an email address or a display name followed by an email address in angle brackets.").optional()
 );
 
 const envSchema = z.object({
@@ -24,7 +27,7 @@ const envSchema = z.object({
   MONGODB_URI: optionalNonEmptyString,
   MONGODB_DNS_SERVERS: optionalNonEmptyString,
   RESEND_API_KEY: optionalNonEmptyString,
-  RESEND_FROM_EMAIL: optionalEmail,
+  RESEND_FROM_EMAIL: optionalEmailSender,
   R2_ACCOUNT_ID: optionalNonEmptyString,
   R2_ENDPOINT: optionalUrl,
   R2_ACCESS_KEY_ID: optionalNonEmptyString,

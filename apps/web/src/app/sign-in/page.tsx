@@ -4,9 +4,9 @@ import { safeInvitationReturn } from "@/lib/invitation-return";
 
 export const metadata = { title: "Sign in | Make My Marriage" };
 
-export default async function SignInPage({ searchParams }: { searchParams: Promise<{ next?: string; email?: string }> }) {
-  const { next, email } = await searchParams;
+export default async function SignInPage({ searchParams }: { searchParams: Promise<{ next?: string; email?: string; session?: string }> }) {
+  const { next, email, session } = await searchParams;
   const redirectTo = safeInvitationReturn(next);
-  await redirectAuthenticatedUser(redirectTo);
+  if (session !== "expired") await redirectAuthenticatedUser(redirectTo);
   return <AuthPage mode="sign-in" redirectTo={redirectTo} initialEmail={email} />;
 }

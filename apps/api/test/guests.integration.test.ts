@@ -10,6 +10,8 @@ import { Event } from "../src/models/event.js";
 import { EventGuest } from "../src/models/event-guest.js";
 import { Guest } from "../src/models/guest.js";
 import { GuestInvitation } from "../src/models/guest-invitation.js";
+import { EmailCampaign } from "../src/models/email-campaign.js";
+import { EmailRecipient } from "../src/models/email-recipient.js";
 import { Session } from "../src/models/session.js";
 import { User } from "../src/models/user.js";
 import { Wedding } from "../src/models/wedding.js";
@@ -22,12 +24,15 @@ describeWithMongo("guest and RSVP integration", () => {
   const email = `codex-guests-${randomUUID()}@example.test`;
   let userId: string | undefined; let weddingId: string | undefined;
   beforeAll(async () => { await connectDatabase(); await ensureCoreIndexes(); }, 30_000);
-  afterAll(async () => { if (mongoose.connection.readyState === 1) { if (weddingId) { await Promise.all([GuestInvitation.deleteMany({ weddingId }), EventGuest.deleteMany({ weddingId }), Guest.deleteMany({ weddingId }), Event.deleteMany({ weddingId }), WeddingMembership.deleteMany({ weddingId }), Wedding.deleteOne({ _id: weddingId })]); } if (userId) await Session.deleteMany({ userId }); await User.deleteOne({ emailNormalized: email }); await mongoose.disconnect(); } }, 30_000);
+  afterAll(async () => { if (mongoose.connection.readyState === 1) { if (weddingId) { const campaignIds = (await EmailCampaign.find({ weddingId }).select("_id").lean()).map((campaign) => campaign._id); await Promise.all([EmailRecipient.deleteMany({ campaignId: { $in: campaignIds } }), EmailCampaign.deleteMany({ weddingId }), GuestInvitation.deleteMany({ weddingId }), EventGuest.deleteMany({ weddingId }), Guest.deleteMany({ weddingId }), Event.deleteMany({ weddingId }), WeddingMembership.deleteMany({ weddingId }), Wedding.deleteOne({ _id: weddingId })]); } if (userId) await Session.deleteMany({ userId }); await User.deleteOne({ emailNormalized: email }); await mongoose.disconnect(); } }, 30_000);
   it("manages family households, ceremony RSVPs, and accountless RSVP links", async () => {
     const client = request.agent(app); const signup = await client.post("/api/v1/auth/signup").send({ displayName: "Guest Test", email, password: "Initial-password-123!" }); expect(signup.status).toBe(201); userId = signup.body.data.user.id;
     const wedding = await client.post("/api/v1/weddings").send({ couple: { brideName: "Aarav", groomName: "Meera" }, weddingDate: "2027-12-12", timeZone: "Asia/Kolkata", location: { address: "Wedding Hall", city: "Coimbatore" } }); expect(wedding.status).toBe(201); weddingId = wedding.body.data.wedding.id;
     const event = await client.post("/api/v1/events").send({ name: "Mehendi", startsAt: "2027-12-10T12:00:00+05:30", timeZone: "Asia/Kolkata", venue: { address: "Heritage Hall", city: "Coimbatore" } }); expect(event.status).toBe(201);
     const guest = await client.post("/api/v1/guests").send({ primaryContactName: "Sundaram Natarajan", email: "sundaram@example.test", familyCount: 4, eventIds: [event.body.data.event.id] }); expect(guest.status).toBe(201);
+    const campaign = await client.post("/api/v1/weddings/current/email-campaigns").send({ type: "WEDDING_INVITATION", eventId: event.body.data.event.id, guestIds: [guest.body.data.guest.id] }); expect(campaign.status).toBe(201); expect(campaign.body.data.campaign.recipientCount).toBe(1);
+    const campaignHistory = await client.get("/api/v1/weddings/current/email-campaigns"); expect(campaignHistory.status).toBe(200); expect(campaignHistory.body.data.campaigns[0]).toMatchObject({ type: "WEDDING_INVITATION", eventName: "Mehendi", recipientCount: 1 });
+    const recipientHistory = await client.get(`/api/v1/weddings/current/email-campaigns/${campaign.body.data.campaign.id}/recipients`); expect(recipientHistory.status).toBe(200); expect(recipientHistory.body.data.recipients[0]).toMatchObject({ email: "sundaram@example.test", status: "PENDING" });
     expect((await client.post("/api/v1/guests").send({ primaryContactName: "Duplicate", email: "SUNDARAM@example.test", familyCount: 2 })).status).toBe(409);
     const listed = await client.get("/api/v1/guests"); expect(listed.status).toBe(200); expect(listed.body.data.summary).toMatchObject({ families: 1, headcount: 4 });
     const rawToken = createOpaqueToken(); await GuestInvitation.create({ weddingId, eventId: event.body.data.event.id, guestId: guest.body.data.guest.id, tokenHash: hashOpaqueToken(rawToken), emailSubmissionStatus: "NOT_CONFIGURED", expiresAt: new Date(Date.now() + 60_000), createdByUserId: userId });

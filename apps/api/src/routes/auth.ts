@@ -21,6 +21,7 @@ const signupSchema = z.object({
 const loginSchema = z.object({ email: z.email().trim().max(254), password: z.string().min(1).max(128) }).strict();
 const resetRequestSchema = z.object({ email: z.email().trim().max(254) }).strict();
 const resetConfirmSchema = z.object({ token: z.string().min(20).max(200), newPassword: passwordSchema }).strict();
+const resetStatusSchema = z.object({ token: z.string().min(20).max(200) }).strict();
 
 export const authRouter: ExpressRouter = Router();
 authRouter.use(enforceRequestOrigin, (_request, response, next) => {
@@ -156,11 +157,15 @@ authRouter.post("/auth/password-reset/request", async (request, response, next) 
           method: "POST",
           headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify({ from: env.RESEND_FROM_EMAIL, to: [user.email], subject: "Reset your Make My Marriage password", html: `<p>Use this link to reset your password. It expires in 30 minutes.</p><p><a href="${resetUrl.toString()}">Reset password</a></p>` })
-        }) as unknown as { ok: boolean };
-        if (!sent.ok) throw new Error("email_delivery_failed");
-      } catch {
+        }) as unknown as { ok: boolean; status: number; json: () => Promise<unknown> };
+        if (!sent.ok) {
+          const body = await sent.json().catch(() => null) as { message?: string; name?: string } | null;
+          console.error("Password reset email provider rejected the request.", { status: sent.status, reason: (body?.message || body?.name || "Unknown provider error").slice(0, 240) });
+          throw new Error("email_delivery_failed");
+        }
+      } catch (error) {
         await PasswordResetToken.deleteOne({ tokenHash: hashOpaqueToken(token) });
-        console.error("Password reset email delivery failed.");
+        if (!(error instanceof Error && error.message === "email_delivery_failed")) console.error("Password reset email delivery failed.", error instanceof Error ? { name: error.name, message: error.message } : { name: "UnknownError" });
       }
     }
     response.status(202).json(genericResponse);
@@ -172,23 +177,53 @@ authRouter.post("/auth/password-reset/confirm", async (request, response, next) 
     await enforceAuthRateLimit(rateKey(request), "password-reset-confirm", 5);
     const parsed = resetConfirmSchema.safeParse(request.body);
     if (!parsed.success) { validationFailure(response, parsed.error.issues); return; }
+    const tokenHash = hashOpaqueToken(parsed.data.token);
+    const now = new Date();
     const reset = await PasswordResetToken.findOneAndUpdate(
-      { tokenHash: hashOpaqueToken(parsed.data.token), expiresAt: { $gt: new Date() }, usedAt: { $exists: false } },
-      { $set: { usedAt: new Date() } },
+      { tokenHash, expiresAt: { $gt: now }, usedAt: { $exists: false }, processingAt: { $exists: false } },
+      { $set: { processingAt: now } },
       { new: true }
     );
     if (!reset) {
+      const completed = await PasswordResetToken.exists({ tokenHash, completedAt: { $exists: true } });
+      if (completed) {
+        response.status(200).json({ data: { message: "Password updated. Sign in with your new password." } });
+        return;
+      }
       response.status(410).json({ error: { code: "TOKEN_EXPIRED_OR_REVOKED", message: "This reset link is invalid or has expired." } });
       return;
     }
     const user = await User.findOne({ _id: reset.userId, status: "ACTIVE" });
     if (!user) {
+      await PasswordResetToken.updateOne({ _id: reset._id }, { $unset: { processingAt: 1 } });
       response.status(410).json({ error: { code: "TOKEN_EXPIRED_OR_REVOKED", message: "This reset link is invalid or has expired." } });
       return;
     }
-    user.passwordHash = await hashPassword(parsed.data.newPassword);
-    await user.save();
-    await Session.deleteMany({ userId: user._id });
+    try {
+      user.passwordHash = await hashPassword(parsed.data.newPassword);
+      await user.save();
+      await Session.deleteMany({ userId: user._id });
+      await PasswordResetToken.updateOne(
+        { _id: reset._id, processingAt: { $exists: true }, usedAt: { $exists: false } },
+        { $set: { usedAt: new Date(), completedAt: new Date() }, $unset: { processingAt: 1 } }
+      );
+    } catch (error) {
+      await PasswordResetToken.updateOne({ _id: reset._id, usedAt: { $exists: false } }, { $unset: { processingAt: 1 } });
+      throw error;
+    }
     response.status(200).json({ data: { message: "Password updated. Sign in with your new password." } });
+  } catch (error) { next(error); }
+});
+
+authRouter.post("/auth/password-reset/confirmation-status", async (request, response, next) => {
+  try {
+    const parsed = resetStatusSchema.safeParse(request.body);
+    if (!parsed.success) { validationFailure(response, parsed.error.issues); return; }
+    const reset = await PasswordResetToken.findOne({ tokenHash: hashOpaqueToken(parsed.data.token) }).select("expiresAt completedAt usedAt").lean();
+    if (reset?.completedAt) {
+      response.status(200).json({ data: { completed: true } });
+      return;
+    }
+    response.status(410).json({ error: { code: "RESET_NOT_COMPLETED", message: "The password update was not completed. Request a new reset link and try again." } });
   } catch (error) { next(error); }
 });

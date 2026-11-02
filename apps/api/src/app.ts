@@ -18,7 +18,10 @@ const helmet = require("helmet") as typeof import("helmet").default;
 export const app: Express = express();
 
 app.disable("x-powered-by");
-app.use(helmet());
+// This API is intentionally consumed by the separate web origin configured in
+// WEB_ORIGIN. CORS restricts which origin may read responses; CORP must not
+// contradict that policy by treating the API as same-origin only.
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(cors({ origin: env.WEB_ORIGIN, credentials: true }));
 app.use(express.json({ limit: "1mb" }));
 app.use("/api/v1", healthRouter);

@@ -1,6 +1,6 @@
 # Project Status
 
-**Last updated:** 2026-10-29
+**Last updated:** 2026-11-02
 **Product scope source:** The approved V1 documents in `docs/prd/`, `docs/architecture/`, `docs/database/`, and `docs/api/`.
 
 This file tracks delivery progress. It is not a replacement for the approved product requirements.
@@ -89,7 +89,7 @@ This file tracks delivery progress. It is not a replacement for the approved pro
 - The invitation email states only that a provider submission was accepted or failed; it does not claim inbox delivery. The visual design’s meal preferences, blessing/notes field, provider audit claims, and automated reminder claims were excluded because they are outside approved V1 scope.
 - Verification: API and web TypeScript and ESLint checks passed. The Mongo-backed guest/RSVP integration test passed, covering household creation, duplicate-email protection, event assignment, token-scoped public RSVP, archive/restore behavior, and safe email reuse after restoring and editing the original record. Manual browser and mobile viewport verification are still pending.
 - Added CSV/XLS/XLSX guest import with a 4 MB / 1,000-row limit, required household-column validation, optional comma-separated active ceremony assignment, and row-numbered duplicate/validation feedback. Import is all-or-nothing for rows that fail pre-write validation.
-- Remaining V1 guest work: the full campaign history/dispatch review surface is not yet implemented.
+- Added documented campaign history records for invitation and RSVP-reminder dispatches. Each new dispatch snapshots the selected family recipients into `emailCampaigns` and `emailRecipients`, records provider submission status per recipient, and is visible from the Guests workspace's **Dispatch history** view. Provider acceptance remains distinct from inbox delivery.
 
 ### Member and invitation management
 
@@ -113,23 +113,22 @@ This file tracks delivery progress. It is not a replacement for the approved pro
 - Reworked the form-and-workspace split layout to match Stitch, including the editorial headline, warm dotted canvas, sample dashboard preview, input focus treatment, and responsive layout. The preview is explicitly illustrative and avoids out-of-scope budget/escrow or live-sync claims.
 - Added Express routes for signup, login, logout, current account, and password reset request/confirmation. User, session, password-reset token, and membership Mongoose models use the collections and constraints from the database design. Sessions and reset tokens are random opaque values whose hashes are stored in MongoDB; passwords are hashed with scrypt.
 - API startup now requires MongoDB, initializes the core indexes, and fails clearly when configuration or connectivity is missing. Auth endpoints use Zod validation, generic login/reset responses, origin checks, secure HttpOnly cookies, and MongoDB-backed attempt limits.
-- Password reset delivery requires `RESEND_API_KEY` and `RESEND_FROM_EMAIL`; reset completion UI and email delivery still require further implementation and verification. Wedding creation, invitation acceptance, authorization middleware, and protected workspace routes are implemented.
+- Password reset delivery requires `RESEND_API_KEY` and `RESEND_FROM_EMAIL`. The reset-request email opens the new `/reset-password?token=…` completion page, which validates a matching 12-character password and clearly handles expired, revoked, or already-used links. Completion posts through a same-origin web handler and only shows the green success state after the API confirms the update; reset tokens are consumed only after the password and session invalidation work completes, so a transient failure does not silently consume the link. Wedding creation, invitation acceptance, authorization middleware, and protected workspace routes are implemented.
 - Signup and password reset require a password of at least 12 characters. Verification: web ESLint and TypeScript checks passed; the API health and authentication integration tests passed against the configured MongoDB database, including signup, login, password reset, session invalidation, and logout.
 - Known source-document mismatch: the API and database designs specify Express/MongoDB, while the system architecture document still specifies Spring Boot/PostgreSQL. This implementation follows the user instruction and the API/database designs; reconciling that architecture document remains open.
-- Manual browser verification on localhost:3000: created a fresh dummy account with a valid password, confirmed signup signs in, session survives reload, login accepts case-insensitive email and rejects password case changes, and logout disables repeated clicks, returns home, and invalidates direct `/welcome` access. Checked required signup/login fields, malformed email, password mismatch, duplicate signup emails, unknown account, wrong password, and show/hide password. Invalid credentials use a generic message; server-side signup password errors explain the 12-character minimum. Authentication remains in progress because the user-facing password recovery completion page and broader protected workspace routes are outstanding.
+- Manual browser verification on localhost:3000: created a fresh dummy account with a valid password, confirmed signup signs in, session survives reload, login accepts case-insensitive email and rejects password case changes, and logout disables repeated clicks, returns home, and invalidates direct `/welcome` access. Checked required signup/login fields, malformed email, password mismatch, duplicate signup emails, unknown account, wrong password, and show/hide password. Invalid credentials use a generic message; server-side signup password errors explain the 12-character minimum. The password-reset completion page is implemented; deployed verification remains pending.
 
 ## Current state
 
-The repository scaffold, public homepage, signup/login/session flow, first wedding onboarding flow, dashboard, event management, task management, expense management, member/invitation management, and the core guest/RSVP flow with guest import are implemented. Password-reset completion UI, guest campaign history, and the remaining protected workspace modules are still outstanding.
+The repository scaffold, public homepage, signup/login/session flow, first wedding onboarding flow, dashboard, event management, task management, expense management, member/invitation management, and the core guest/RSVP flow with guest import, campaign history, and public RSVP links are implemented. A password-reset completion page is implemented. The remaining protected workspace modules and production verification execution are still outstanding.
 
 ## Planned V1 milestones
 
 Follow the sequencing in the approved documents and README. Authentication, sessions, route protection, wedding onboarding, event management, task management, and member invitations are implemented. Remaining work includes:
 
-1. Complete and verify password recovery, including the reset page and email delivery.
-2. Complete guest campaign history/dispatch review.
-3. Wedding website publishing, livestream, and moderated photo sharing.
-4. Vendor management and nearby vendor discovery, followed by security hardening.
+1. Execute the [production verification checklist](./PRODUCTION_VERIFICATION.md) for signup, sign-in, password reset, invitations, RSVP, and logout.
+2. Wedding website publishing, livestream, and moderated photo sharing.
+3. Vendor management and nearby vendor discovery, followed by security hardening.
 
 These are planned, not completed, until implemented and verified.
 

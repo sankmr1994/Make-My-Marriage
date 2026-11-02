@@ -7,6 +7,8 @@ import { Event } from "../models/event.js";
 import { EventGuest } from "../models/event-guest.js";
 import { Guest } from "../models/guest.js";
 import { GuestInvitation } from "../models/guest-invitation.js";
+import { EmailCampaign } from "../models/email-campaign.js";
+import { EmailRecipient } from "../models/email-recipient.js";
 import { Session } from "../models/session.js";
 import { User } from "../models/user.js";
 import { Wedding } from "../models/wedding.js";
@@ -25,6 +27,8 @@ const guestFields = z.object({ primaryContactName: z.string().trim().min(1, "Pri
 const guestPatch = guestFields.partial().strict().refine((value) => Object.keys(value).length > 0, "Provide at least one field to update.");
 const assignmentInput = z.object({ guestIds: z.array(objectId).min(1, "Select at least one family.").max(100) }).strict();
 const invitationInput = z.object({ guestIds: z.array(objectId).min(1).max(100).optional() }).strict();
+const campaignQuery = z.object({ limit: z.coerce.number().int().min(1).max(50).default(12) });
+const campaignInput = z.object({ type: z.enum(["WEDDING_INVITATION", "RSVP_REMINDER"]), eventId: objectId, guestIds: z.array(objectId).min(1).max(50).optional() }).strict();
 const guestImportInput = z.object({ fileName: z.string().trim().min(1).max(255), contentBase64: z.string().min(1).max(5_600_000) }).strict();
 const rsvpInput = z.object({ response: z.enum(["ATTENDING", "NOT_ATTENDING"]) }).strict();
 const guestToken = z.string().min(20).max(200);
@@ -35,6 +39,7 @@ async function authenticatedUser(request: Request) { const token = readCookie(re
 async function membershipFor(userId: unknown) { const membership = await WeddingMembership.findOne({ userId, status: "ACTIVE" }).select("weddingId").lean(); if (!membership) throw new AppError(403, "FORBIDDEN", "Create a wedding before managing guests."); return membership; }
 function validationFailure(response: ExpressResponse, issues: z.ZodIssue[]) { response.status(400).json({ error: { code: "VALIDATION_ERROR", message: "The request contains invalid fields.", fieldErrors: Object.fromEntries(issues.map((issue) => [String(issue.path[0] ?? "request"), issue.message])) } }); }
 function escapeHtml(value: string) { return value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character] ?? character); }
+function sanitizeProviderReason(reason: string | undefined) { return reason ? reason.replace(/[\r\n]+/g, " ").trim().slice(0, 240) : undefined; }
 function importColumn(row: Record<string, unknown>, name: string) { const key = Object.keys(row).find((candidate) => candidate.replace(/[ _-]/g, "").toLowerCase() === name.replace(/[ _-]/g, "").toLowerCase()); return key ? row[key] : undefined; }
 function serializeGuest(guest: { _id: unknown; primaryContactName: string; email: string; familyCount: number; status: string; createdAt: Date; updatedAt: Date }, assignments: Array<{ eventId: unknown; rsvpStatus: string; rsvpRespondedAt?: Date }>, events: Map<string, { name: string }>) { return { id: String(guest._id), primaryContactName: guest.primaryContactName, email: guest.email, familyCount: guest.familyCount, status: guest.status, assignments: assignments.map((item) => ({ eventId: String(item.eventId), eventName: events.get(String(item.eventId))?.name ?? "Ceremony", rsvpStatus: item.rsvpStatus, rsvpRespondedAt: item.rsvpRespondedAt })), createdAt: guest.createdAt, updatedAt: guest.updatedAt }; }
 async function activeEvent(weddingId: unknown, eventId: string) { const event = await Event.findOne({ _id: eventId, weddingId, status: "ACTIVE" }).lean(); if (!event) throw new AppError(404, "NOT_FOUND", "Active ceremony not found."); return event; }
@@ -79,6 +84,64 @@ guestsRouter.delete("/events/:eventId/guest-assignments/:guestId", async (reques
 async function sendInvitations(request: Request, response: ExpressResponse, next: (error?: unknown) => void, remindersOnly: boolean) { try { const user = await authenticatedUser(request); const membership = await membershipFor(user._id); await enforceAuthRateLimit(request.ip || request.socket.remoteAddress || "unknown", remindersOnly ? "guest-rsvp-reminder" : "guest-invitation-create", remindersOnly ? 20 : 10); const id = objectId.safeParse(request.params.eventId); const parsed = invitationInput.safeParse(request.body ?? {}); if (!id.success) { validationFailure(response, id.error.issues); return; } if (!parsed.success) { validationFailure(response, parsed.error.issues); return; } const event = await activeEvent(membership.weddingId, id.data); const wedding = await Wedding.findById(membership.weddingId).select("couple location").lean(); if (!wedding) throw new AppError(404, "NOT_FOUND", "Wedding not found."); const filter: Record<string, unknown> = { weddingId: membership.weddingId, eventId: event._id }; if (parsed.data.guestIds) filter.guestId = { $in: parsed.data.guestIds }; if (remindersOnly) filter.rsvpStatus = "PENDING"; const assignments = await EventGuest.find(filter).lean(); if (!assignments.length) { response.status(200).json({ data: { sent: 0, failed: 0, notConfigured: 0, failedReasons: [] } }); return; } const guests = await Guest.find({ _id: { $in: assignments.map((item) => item.guestId) }, status: "ACTIVE" }).lean(); const byId = new Map(guests.map((item) => [String(item._id), item])); let sent = 0; let failed = 0; let notConfigured = 0; const failedReasons: string[] = []; for (const assignment of assignments) { const guest = byId.get(String(assignment.guestId)); if (!guest) continue; await GuestInvitation.updateMany({ weddingId: membership.weddingId, eventId: event._id, guestId: guest._id, revokedAt: { $exists: false }, expiresAt: { $gt: new Date() } }, { $set: { revokedAt: new Date() } }); const raw = createOpaqueToken(); const invitation = await GuestInvitation.create({ weddingId: membership.weddingId, eventId: event._id, guestId: guest._id, tokenHash: hashOpaqueToken(raw), expiresAt: new Date(Date.now() + 30 * 24 * 60 * 1000), createdByUserId: user._id }); const delivery = await submitGuestEmail({ email: guest.email, token: raw, contactName: guest.primaryContactName, event, wedding }); invitation.emailSubmissionStatus = delivery.status; await invitation.save(); if (delivery.status === "ACCEPTED") sent += 1; else if (delivery.status === "FAILED") { failed += 1; if (delivery.reason) failedReasons.push(delivery.reason); } else notConfigured += 1; } response.status(201).json({ data: { sent, failed, notConfigured, failedReasons: [...new Set(failedReasons)] } }); } catch (error) { next(error); } }
 guestsRouter.post("/events/:eventId/guest-invitations", (request, response, next) => void sendInvitations(request, response, next, false));
 guestsRouter.post("/events/:eventId/rsvp-reminders", (request, response, next) => void sendInvitations(request, response, next, true));
+
+async function processCampaign(campaignId: string, userId: Types.ObjectId, weddingId: Types.ObjectId) {
+  const campaign = await EmailCampaign.findOne({ _id: campaignId, weddingId });
+  if (!campaign) throw new AppError(404, "NOT_FOUND", "Email campaign not found.");
+  const event = await activeEvent(weddingId, String(campaign.eventId));
+  const wedding = await Wedding.findById(weddingId).select("couple location").lean();
+  if (!wedding) throw new AppError(404, "NOT_FOUND", "Wedding not found.");
+  const recipients = await EmailRecipient.find({ campaignId: campaign._id, status: "PENDING" }).sort({ createdAt: 1 }).limit(50);
+  let acceptedCount = 0; let failedCount = 0; let notConfiguredCount = 0; const failedReasons: string[] = [];
+  for (const recipient of recipients) {
+    const claimed = await EmailRecipient.findOneAndUpdate({ _id: recipient._id, status: "PENDING" }, { $set: { status: "SUBMITTING" }, $inc: { attemptCount: 1 } }, { new: true });
+    if (!claimed) continue;
+    const guest = await Guest.findOne({ _id: claimed.guestId, weddingId, status: "ACTIVE" }).lean();
+    if (!guest) { await EmailRecipient.updateOne({ _id: claimed._id }, { $set: { status: "FAILED", lastErrorCode: "Guest family is no longer active.", submittedAt: new Date() } }); failedCount += 1; continue; }
+    await GuestInvitation.updateMany({ weddingId, eventId: event._id, guestId: guest._id, revokedAt: { $exists: false }, expiresAt: { $gt: new Date() } }, { $set: { revokedAt: new Date() } });
+    const rawToken = createOpaqueToken();
+    const invitation = await GuestInvitation.create({ weddingId, eventId: event._id, guestId: guest._id, tokenHash: hashOpaqueToken(rawToken), expiresAt: new Date(Date.now() + 30 * 24 * 60 * 1000), createdByUserId: userId });
+    const delivery = await submitGuestEmail({ email: guest.email, token: rawToken, contactName: guest.primaryContactName, event, wedding });
+    invitation.emailSubmissionStatus = delivery.status; await invitation.save();
+    const status = delivery.status === "ACCEPTED" ? "ACCEPTED" : "FAILED";
+    await EmailRecipient.updateOne({ _id: claimed._id }, { $set: { status, lastErrorCode: sanitizeProviderReason(delivery.reason), submittedAt: new Date() } });
+    if (status === "ACCEPTED") acceptedCount += 1;
+    else if (status === "FAILED") { failedCount += 1; if (delivery.reason) failedReasons.push(delivery.reason); }
+    else notConfiguredCount += 1;
+  }
+  const counts = await EmailRecipient.aggregate<{ _id: string; count: number }>([{ $match: { campaignId: campaign._id } }, { $group: { _id: "$status", count: { $sum: 1 } } }]);
+  const byStatus = new Map(counts.map((item) => [item._id, item.count])); const remainingCount = (byStatus.get("PENDING") ?? 0) + (byStatus.get("SUBMITTING") ?? 0);
+  campaign.submittedCount = byStatus.get("ACCEPTED") ?? 0; campaign.failedCount = byStatus.get("FAILED") ?? 0; campaign.lastProcessedAt = new Date(); campaign.status = remainingCount ? "PROCESSING" : campaign.submittedCount ? (campaign.failedCount ? "PARTIALLY_SUBMITTED" : "SUBMITTED") : "FAILED"; await campaign.save();
+  return { campaignId: String(campaign._id), processedCount: acceptedCount + failedCount + notConfiguredCount, acceptedCount, failedCount, notConfiguredCount, remainingCount, hasMore: remainingCount > 0, failedReasons: [...new Set(failedReasons)] };
+}
+
+guestsRouter.post("/weddings/current/email-campaigns", async (request, response, next) => { try {
+  const user = await authenticatedUser(request); const membership = await membershipFor(user._id); const parsed = campaignInput.safeParse(request.body); if (!parsed.success) { validationFailure(response, parsed.error.issues); return; }
+  await enforceAuthRateLimit(request.ip || request.socket.remoteAddress || "unknown", "email-campaign-create", 10);
+  const event = await activeEvent(membership.weddingId, parsed.data.eventId); const assignmentFilter: Record<string, unknown> = { weddingId: membership.weddingId, eventId: event._id }; if (parsed.data.guestIds) assignmentFilter.guestId = { $in: parsed.data.guestIds }; if (parsed.data.type === "RSVP_REMINDER") assignmentFilter.rsvpStatus = "PENDING";
+  const assignments = await EventGuest.find(assignmentFilter).lean(); const eligibleGuestIds = assignments.map((item) => item.guestId); const guests = eligibleGuestIds.length ? await Guest.find({ _id: { $in: eligibleGuestIds }, weddingId: membership.weddingId, status: "ACTIVE" }).lean() : [];
+  if (!guests.length) throw new AppError(422, "BUSINESS_RULE_VIOLATION", parsed.data.type === "RSVP_REMINDER" ? "No selected families have a pending RSVP for this ceremony." : "No active selected families are assigned to this ceremony.");
+  const campaign = await EmailCampaign.create({ weddingId: membership.weddingId, eventId: event._id, type: parsed.data.type, status: "DRAFT", createdByUserId: user._id, recipientCount: guests.length, submittedCount: 0, failedCount: 0 });
+  await EmailRecipient.insertMany(guests.map((guest) => ({ campaignId: campaign._id, weddingId: membership.weddingId, guestId: guest._id, eventId: event._id, recipientKey: String(guest._id), recipientEmail: guest.email, messageType: parsed.data.type, status: "PENDING", attemptCount: 0 })));
+  response.status(201).json({ data: { campaign: { id: String(campaign._id), type: campaign.type, status: campaign.status, recipientCount: campaign.recipientCount, event: { id: String(event._id), name: event.name } } } });
+} catch (error) { next(error); } });
+
+guestsRouter.post("/weddings/current/email-campaigns/:campaignId/process-next-batch", async (request, response, next) => { try {
+  const user = await authenticatedUser(request); const membership = await membershipFor(user._id); const id = objectId.safeParse(request.params.campaignId); if (!id.success) { validationFailure(response, id.error.issues); return; }
+  await enforceAuthRateLimit(request.ip || request.socket.remoteAddress || "unknown", "email-campaign-process", 20); response.status(200).json({ data: await processCampaign(id.data, user._id, membership.weddingId) });
+} catch (error) { next(error); } });
+
+guestsRouter.get("/weddings/current/email-campaigns", async (request, response, next) => { try {
+  const user = await authenticatedUser(request); const membership = await membershipFor(user._id); const parsed = campaignQuery.safeParse(request.query); if (!parsed.success) { validationFailure(response, parsed.error.issues); return; }
+  const campaigns = await EmailCampaign.find({ weddingId: membership.weddingId }).sort({ createdAt: -1 }).limit(parsed.data.limit).lean(); const events = campaigns.length ? await Event.find({ _id: { $in: campaigns.map((item) => item.eventId) } }).select("name").lean() : []; const names = new Map(events.map((event) => [String(event._id), event.name]));
+  response.status(200).json({ data: { campaigns: campaigns.map((campaign) => ({ id: String(campaign._id), type: campaign.type, status: campaign.status, eventName: names.get(String(campaign.eventId)) ?? "Ceremony", recipientCount: campaign.recipientCount, submittedCount: campaign.submittedCount, failedCount: campaign.failedCount, createdAt: campaign.createdAt, lastProcessedAt: campaign.lastProcessedAt })) } });
+} catch (error) { next(error); } });
+
+guestsRouter.get("/weddings/current/email-campaigns/:campaignId/recipients", async (request, response, next) => { try {
+  const user = await authenticatedUser(request); const membership = await membershipFor(user._id); const id = objectId.safeParse(request.params.campaignId); if (!id.success) { validationFailure(response, id.error.issues); return; }
+  const campaign = await EmailCampaign.findOne({ _id: id.data, weddingId: membership.weddingId }).lean(); if (!campaign) throw new AppError(404, "NOT_FOUND", "Email campaign not found."); const recipients = await EmailRecipient.find({ campaignId: campaign._id }).sort({ createdAt: 1 }).lean();
+  response.status(200).json({ data: { recipients: recipients.map((recipient) => ({ id: String(recipient._id), email: recipient.recipientEmail, status: recipient.status, attemptCount: recipient.attemptCount, lastError: recipient.lastErrorCode, submittedAt: recipient.submittedAt })) } });
+} catch (error) { next(error); } });
 
 guestsRouter.get("/guest-rsvps/:token", async (request, response, next) => { try { const parsed = guestToken.safeParse(request.params.token); if (!parsed.success) { response.status(200).json({ data: { status: "INVALID" } }); return; } const invitation = await GuestInvitation.findOne({ tokenHash: hashOpaqueToken(parsed.data) }).select("+tokenHash").lean(); if (!invitation || invitation.revokedAt || invitation.expiresAt <= new Date()) { response.status(200).json({ data: { status: "UNAVAILABLE" } }); return; } const [guest, event, wedding, assignment] = await Promise.all([Guest.findOne({ _id: invitation.guestId, weddingId: invitation.weddingId, status: "ACTIVE" }).lean(), Event.findOne({ _id: invitation.eventId, weddingId: invitation.weddingId, status: "ACTIVE" }).lean(), Wedding.findById(invitation.weddingId).select("couple weddingDate location").lean(), EventGuest.findOne({ weddingId: invitation.weddingId, eventId: invitation.eventId, guestId: invitation.guestId }).lean()]); if (!guest || !event || !wedding || !assignment) { response.status(200).json({ data: { status: "UNAVAILABLE" } }); return; } response.status(200).json({ data: { status: "ACTIVE", family: { primaryContactName: guest.primaryContactName, familyCount: guest.familyCount }, wedding: { couple: wedding.couple, weddingDate: wedding.weddingDate, location: wedding.location }, event: { name: event.name, startsAt: event.startsAt, venue: event.venue }, rsvpStatus: assignment.rsvpStatus } }); } catch (error) { next(error); } });
 

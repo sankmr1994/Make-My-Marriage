@@ -30,7 +30,10 @@ export function WelcomePage() {
         });
 
         if (response.status === 401) {
-          router.replace("/sign-in");
+          // A password reset invalidates sessions. Bypass the server-side
+          // signed-in redirect once so a stale browser cookie cannot bounce
+          // the visitor between this page and the sign-in page.
+          router.replace("/sign-in?session=expired");
           return;
         }
         if (!response.ok) throw new Error("account_unavailable");

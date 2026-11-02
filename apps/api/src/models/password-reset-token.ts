@@ -4,7 +4,9 @@ export type PasswordResetTokenDocument = {
   userId: Types.ObjectId;
   tokenHash: string;
   expiresAt: Date;
+  processingAt?: Date;
   usedAt?: Date;
+  completedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -13,6 +15,8 @@ const passwordResetTokenSchema = new Schema<PasswordResetTokenDocument>({
   userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
   tokenHash: { type: String, required: true, unique: true, select: false },
   expiresAt: { type: Date, required: true },
+  processingAt: { type: Date },
+  completedAt: { type: Date },
   usedAt: { type: Date }
 }, { timestamps: true, collection: "passwordResetTokens" });
 

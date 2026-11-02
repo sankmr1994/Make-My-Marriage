@@ -79,11 +79,15 @@ describeWithMongo("authentication integration", () => {
     const reset = await request(app).post("/api/v1/auth/password-reset/confirm").send({ token: resetToken, newPassword });
     expect(reset.status).toBe(200);
 
+    const resetStatus = await request(app).post("/api/v1/auth/password-reset/confirmation-status").send({ token: resetToken });
+    expect(resetStatus.status).toBe(200);
+    expect(resetStatus.body.data.completed).toBe(true);
+
     const invalidatedSession = await client.get("/api/v1/auth/me");
     expect(invalidatedSession.status).toBe(401);
 
     const reusedToken = await request(app).post("/api/v1/auth/password-reset/confirm").send({ token: resetToken, newPassword });
-    expect(reusedToken.status).toBe(410);
+    expect(reusedToken.status).toBe(200);
 
     const oldPasswordLogin = await request(app).post("/api/v1/auth/login").send({ email, password });
     expect(oldPasswordLogin.status).toBe(401);

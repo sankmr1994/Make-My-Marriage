@@ -17,7 +17,7 @@ const pageContent = {
   }
 } satisfies Record<AuthMode, { title: string; description: string; action: string }>;
 
-function WorkspacePreview() {
+export function WorkspacePreview() {
   return (
     <div className="workspace-preview-wrap">
       <div className="workspace-preview-heading">
