@@ -13,6 +13,8 @@ import { EventGuest } from "../models/event-guest.js";
 import { GuestInvitation } from "../models/guest-invitation.js";
 import { EmailCampaign } from "../models/email-campaign.js";
 import { EmailRecipient } from "../models/email-recipient.js";
+import { Vendor } from "../models/vendor.js";
+import { VendorEventAssignment } from "../models/vendor-event-assignment.js";
 
 export async function ensureCoreIndexes(): Promise<void> {
   await Promise.all([
@@ -30,6 +32,8 @@ export async function ensureCoreIndexes(): Promise<void> {
     GuestInvitation.createIndexes(),
     EmailCampaign.createIndexes(),
     EmailRecipient.createIndexes(),
+    Vendor.createIndexes(),
+    VendorEventAssignment.createIndexes(),
     AuthRateLimit.createIndexes()
   ]);
   console.info("Core account and session indexes are ready.");

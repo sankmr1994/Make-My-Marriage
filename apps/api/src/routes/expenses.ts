@@ -5,6 +5,7 @@ import { Event } from "../models/event.js";
 import { Expense, expenseCategories } from "../models/expense.js";
 import { Session } from "../models/session.js";
 import { User } from "../models/user.js";
+import { Vendor } from "../models/vendor.js";
 import { WeddingMembership } from "../models/wedding-membership.js";
 import { enforceRequestOrigin } from "../middleware/request-origin.js";
 import { AppError } from "../utils/app-error.js";
@@ -22,6 +23,7 @@ const expenseFieldsSchema = z.object({
   amountRupees: amountSchema,
   category: categorySchema,
   eventId: objectIdSchema.nullable().optional(),
+  vendorId: objectIdSchema.nullable().optional(),
   paymentStatus: paymentStatusSchema.default("UNPAID"),
   paymentDate: z.iso.datetime({ offset: true }).nullable().optional(),
   payerName: z.string().trim().max(120).nullable().optional(),
@@ -53,14 +55,19 @@ async function currentMembership(userId: unknown) {
 function validationFailure(response: Response, issues: z.ZodIssue[]) {
   response.status(400).json({ error: { code: "VALIDATION_ERROR", message: "The request contains invalid fields.", fieldErrors: Object.fromEntries(issues.map((issue) => [String(issue.path[0] ?? "request"), issue.message])) } });
 }
-async function verifyEvent(weddingId: unknown, eventId?: string | null) {
-  if (!eventId) return;
-  const event = await Event.exists({ _id: eventId, weddingId, status: "ACTIVE" });
-  if (!event) throw new AppError(422, "BUSINESS_RULE_VIOLATION", "The selected event is not active in this wedding.");
+async function verifyReferences(weddingId: unknown, eventId?: string | null, vendorId?: string | null) {
+  if (eventId) {
+    const event = await Event.exists({ _id: eventId, weddingId, status: "ACTIVE" });
+    if (!event) throw new AppError(422, "BUSINESS_RULE_VIOLATION", "The selected event is not active in this wedding.");
+  }
+  if (vendorId) {
+    const vendor = await Vendor.exists({ _id: vendorId, weddingId, status: "ACTIVE" });
+    if (!vendor) throw new AppError(422, "BUSINESS_RULE_VIOLATION", "The selected vendor is not active in this wedding.");
+  }
 }
 function roundedAmount(amount: number) { return Math.round(amount); }
-function serializeExpense(expense: { _id: unknown; description: string; amountRupees: number; currency: string; category: string; eventId?: unknown; paymentStatus: string; paymentDate?: Date; payerName?: string; notes?: string; createdAt: Date; updatedAt: Date }) {
-  return { id: String(expense._id), description: expense.description, amountRupees: expense.amountRupees, currency: expense.currency, category: expense.category, eventId: expense.eventId ? String(expense.eventId) : undefined, paymentStatus: expense.paymentStatus, paymentDate: expense.paymentDate, payerName: expense.payerName, notes: expense.notes, createdAt: expense.createdAt, updatedAt: expense.updatedAt };
+function serializeExpense(expense: { _id: unknown; description: string; amountRupees: number; currency: string; category: string; eventId?: unknown; vendorId?: unknown; paymentStatus: string; paymentDate?: Date; payerName?: string; notes?: string; createdAt: Date; updatedAt: Date }) {
+  return { id: String(expense._id), description: expense.description, amountRupees: expense.amountRupees, currency: expense.currency, category: expense.category, eventId: expense.eventId ? String(expense.eventId) : undefined, vendorId: expense.vendorId ? String(expense.vendorId) : undefined, paymentStatus: expense.paymentStatus, paymentDate: expense.paymentDate, payerName: expense.payerName, notes: expense.notes, createdAt: expense.createdAt, updatedAt: expense.updatedAt };
 }
 function escapedRegex(value: string) { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
 
@@ -89,8 +96,8 @@ expensesRouter.post("/expenses", async (request, response, next) => {
     if (!parsed.success) { validationFailure(response, parsed.error.issues); return; }
     const amountRupees = roundedAmount(parsed.data.amountRupees);
     if (amountRupees < 1) throw new AppError(400, "VALIDATION_ERROR", "Amount must be at least ₹1.");
-    await verifyEvent(membership.weddingId, parsed.data.eventId);
-    const expense = await Expense.create({ ...parsed.data, amountRupees, eventId: parsed.data.eventId ?? undefined, paymentDate: parsed.data.paymentDate ? new Date(parsed.data.paymentDate) : undefined, payerName: parsed.data.payerName ?? undefined, notes: parsed.data.notes ?? undefined, weddingId: membership.weddingId, createdByUserId: user._id });
+    await verifyReferences(membership.weddingId, parsed.data.eventId, parsed.data.vendorId);
+    const expense = await Expense.create({ ...parsed.data, amountRupees, eventId: parsed.data.eventId ?? undefined, vendorId: parsed.data.vendorId ?? undefined, paymentDate: parsed.data.paymentDate ? new Date(parsed.data.paymentDate) : undefined, payerName: parsed.data.payerName ?? undefined, notes: parsed.data.notes ?? undefined, weddingId: membership.weddingId, createdByUserId: user._id });
     response.status(201).json({ data: { expense: serializeExpense(expense) } });
   } catch (error) { next(error); }
 });
@@ -108,11 +115,12 @@ expensesRouter.patch("/expenses/:expenseId", async (request, response, next) => 
     const nextStatus = parsed.data.paymentStatus ?? expense.paymentStatus;
     const nextDate = parsed.data.paymentDate === undefined ? expense.paymentDate : parsed.data.paymentDate ? new Date(parsed.data.paymentDate) : undefined;
     if (nextStatus === "PAID" && !nextDate) throw new AppError(400, "VALIDATION_ERROR", "Payment date is required for a paid expense.");
-    await verifyEvent(membership.weddingId, parsed.data.eventId);
+    await verifyReferences(membership.weddingId, parsed.data.eventId, parsed.data.vendorId);
     if (parsed.data.description !== undefined) expense.description = parsed.data.description;
     if (parsed.data.amountRupees !== undefined) { const amount = roundedAmount(parsed.data.amountRupees); if (amount < 1) throw new AppError(400, "VALIDATION_ERROR", "Amount must be at least ₹1."); expense.amountRupees = amount; }
     if (parsed.data.category !== undefined) expense.category = parsed.data.category;
     if (parsed.data.eventId !== undefined) expense.eventId = parsed.data.eventId ? new Types.ObjectId(parsed.data.eventId) : undefined;
+    if (parsed.data.vendorId !== undefined) expense.vendorId = parsed.data.vendorId ? new Types.ObjectId(parsed.data.vendorId) : undefined;
     if (parsed.data.paymentStatus !== undefined) expense.paymentStatus = parsed.data.paymentStatus;
     if (parsed.data.paymentDate !== undefined) expense.paymentDate = parsed.data.paymentDate ? new Date(parsed.data.paymentDate) : undefined;
     if (parsed.data.payerName !== undefined) expense.payerName = parsed.data.payerName ?? undefined;

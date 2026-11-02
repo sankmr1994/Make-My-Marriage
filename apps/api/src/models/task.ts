@@ -3,6 +3,7 @@ import { model, Schema, Types } from "mongoose";
 export type TaskDocument = {
   weddingId: Types.ObjectId;
   eventId?: Types.ObjectId;
+  vendorId?: Types.ObjectId;
   title: string;
   description?: string;
   assigneeMembershipId?: Types.ObjectId;
@@ -18,6 +19,7 @@ export type TaskDocument = {
 const taskSchema = new Schema<TaskDocument>({
   weddingId: { type: Schema.Types.ObjectId, required: true, ref: "Wedding", index: true },
   eventId: { type: Schema.Types.ObjectId, ref: "Event" },
+  vendorId: { type: Schema.Types.ObjectId, ref: "Vendor" },
   title: { type: String, required: true, trim: true, maxlength: 120 },
   description: { type: String, trim: true, maxlength: 2000 },
   assigneeMembershipId: { type: Schema.Types.ObjectId, ref: "WeddingMembership" },
@@ -31,5 +33,6 @@ const taskSchema = new Schema<TaskDocument>({
 taskSchema.index({ weddingId: 1, status: 1, dueAt: 1 });
 taskSchema.index({ weddingId: 1, assigneeMembershipId: 1, status: 1 });
 taskSchema.index({ weddingId: 1, eventId: 1, status: 1 });
+taskSchema.index({ weddingId: 1, vendorId: 1 });
 
 export const Task = model<TaskDocument>("Task", taskSchema);

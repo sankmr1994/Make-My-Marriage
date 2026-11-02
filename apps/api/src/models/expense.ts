@@ -6,6 +6,7 @@ export type ExpenseCategory = typeof expenseCategories[number];
 export type ExpenseDocument = {
   weddingId: Types.ObjectId;
   eventId?: Types.ObjectId;
+  vendorId?: Types.ObjectId;
   description: string;
   amountRupees: number;
   currency: "INR";
@@ -22,6 +23,7 @@ export type ExpenseDocument = {
 const expenseSchema = new Schema<ExpenseDocument>({
   weddingId: { type: Schema.Types.ObjectId, required: true, ref: "Wedding", index: true },
   eventId: { type: Schema.Types.ObjectId, ref: "Event" },
+  vendorId: { type: Schema.Types.ObjectId, ref: "Vendor" },
   description: { type: String, required: true, trim: true, maxlength: 200 },
   amountRupees: { type: Number, required: true, min: 1, validate: { validator: Number.isInteger, message: "Expense amounts must be whole INR rupees." } },
   currency: { type: String, required: true, enum: ["INR"], default: "INR" },
@@ -35,5 +37,6 @@ const expenseSchema = new Schema<ExpenseDocument>({
 
 expenseSchema.index({ weddingId: 1, paymentStatus: 1, paymentDate: -1 });
 expenseSchema.index({ weddingId: 1, eventId: 1 });
+expenseSchema.index({ weddingId: 1, vendorId: 1 });
 
 export const Expense = model<ExpenseDocument>("Expense", expenseSchema);

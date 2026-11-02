@@ -33,7 +33,7 @@ const envSchema = z.object({
   R2_ACCESS_KEY_ID: optionalNonEmptyString,
   R2_SECRET_ACCESS_KEY: optionalNonEmptyString,
   R2_BUCKET_NAME: optionalNonEmptyString,
-  GOOGLE_PLACES_API_KEY: optionalNonEmptyString
+  GEOAPIFY_API_KEY: optionalNonEmptyString
 }).superRefine((value, context) => {
   if (Boolean(value.RESEND_API_KEY) !== Boolean(value.RESEND_FROM_EMAIL)) {
     context.addIssue({ code: "custom", path: ["RESEND_API_KEY"], message: "Configure both Resend email settings or leave both empty." });

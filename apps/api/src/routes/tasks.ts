@@ -5,6 +5,7 @@ import { Event } from "../models/event.js";
 import { Session } from "../models/session.js";
 import { Task } from "../models/task.js";
 import { User } from "../models/user.js";
+import { Vendor } from "../models/vendor.js";
 import { WeddingMembership } from "../models/wedding-membership.js";
 import { enforceRequestOrigin } from "../middleware/request-origin.js";
 import { AppError } from "../utils/app-error.js";
@@ -23,6 +24,7 @@ const taskInputSchema = z.object({
   dueAt: z.iso.datetime({ offset: true }).nullable().optional(),
   priority: prioritySchema.default("MEDIUM"),
   eventId: objectIdSchema.nullable().optional(),
+  vendorId: objectIdSchema.nullable().optional(),
   status: statusSchema.default("NOT_STARTED"),
   notes: z.string().trim().max(2000).optional()
 }).strict();
@@ -33,6 +35,7 @@ const taskUpdateSchema = z.object({
   dueAt: z.iso.datetime({ offset: true }).nullable().optional(),
   priority: prioritySchema.optional(),
   eventId: objectIdSchema.nullable().optional(),
+  vendorId: objectIdSchema.nullable().optional(),
   status: statusSchema.optional(),
   notes: z.string().trim().max(2000).nullable().optional()
 }).strict().refine((value) => Object.keys(value).length > 0, "Provide at least one field to update.");
@@ -58,7 +61,7 @@ async function currentMembership(userId: unknown) {
 function validationFailure(response: Response, issues: z.ZodIssue[]) {
   response.status(400).json({ error: { code: "VALIDATION_ERROR", message: "The request contains invalid fields.", fieldErrors: Object.fromEntries(issues.map((issue) => [String(issue.path[0] ?? "request"), issue.message])) } });
 }
-async function verifyReferences(input: { weddingId: unknown; eventId?: string | null; assigneeMembershipId?: string | null }) {
+async function verifyReferences(input: { weddingId: unknown; eventId?: string | null; assigneeMembershipId?: string | null; vendorId?: string | null }) {
   if (input.eventId) {
     const event = await Event.exists({ _id: input.eventId, weddingId: input.weddingId, status: "ACTIVE" });
     if (!event) throw new AppError(422, "BUSINESS_RULE_VIOLATION", "The selected event is not active in this wedding.");
@@ -67,9 +70,13 @@ async function verifyReferences(input: { weddingId: unknown; eventId?: string | 
     const membership = await WeddingMembership.exists({ _id: input.assigneeMembershipId, weddingId: input.weddingId, status: "ACTIVE" });
     if (!membership) throw new AppError(422, "BUSINESS_RULE_VIOLATION", "The selected assignee is not an active wedding member.");
   }
+  if (input.vendorId) {
+    const vendor = await Vendor.exists({ _id: input.vendorId, weddingId: input.weddingId, status: "ACTIVE" });
+    if (!vendor) throw new AppError(422, "BUSINESS_RULE_VIOLATION", "The selected vendor is not active in this wedding.");
+  }
 }
-function serializeTask(task: { _id: unknown; title: string; description?: string; assigneeMembershipId?: unknown; dueAt?: Date; priority: string; eventId?: unknown; status: string; notes?: string; createdAt: Date; updatedAt: Date }) {
-  return { id: String(task._id), title: task.title, description: task.description, assigneeMembershipId: task.assigneeMembershipId ? String(task.assigneeMembershipId) : undefined, dueAt: task.dueAt, priority: task.priority, eventId: task.eventId ? String(task.eventId) : undefined, status: task.status, notes: task.notes, createdAt: task.createdAt, updatedAt: task.updatedAt };
+function serializeTask(task: { _id: unknown; title: string; description?: string; assigneeMembershipId?: unknown; dueAt?: Date; priority: string; eventId?: unknown; vendorId?: unknown; status: string; notes?: string; createdAt: Date; updatedAt: Date }) {
+  return { id: String(task._id), title: task.title, description: task.description, assigneeMembershipId: task.assigneeMembershipId ? String(task.assigneeMembershipId) : undefined, dueAt: task.dueAt, priority: task.priority, eventId: task.eventId ? String(task.eventId) : undefined, vendorId: task.vendorId ? String(task.vendorId) : undefined, status: task.status, notes: task.notes, createdAt: task.createdAt, updatedAt: task.updatedAt };
 }
 
 tasksRouter.get("/tasks", async (request, response, next) => {
@@ -97,8 +104,8 @@ tasksRouter.post("/tasks", async (request, response, next) => {
     const membership = await currentMembership(user._id);
     const parsed = taskInputSchema.safeParse(request.body);
     if (!parsed.success) { validationFailure(response, parsed.error.issues); return; }
-    await verifyReferences({ weddingId: membership.weddingId, eventId: parsed.data.eventId, assigneeMembershipId: parsed.data.assigneeMembershipId });
-    const task = await Task.create({ ...parsed.data, eventId: parsed.data.eventId ?? undefined, assigneeMembershipId: parsed.data.assigneeMembershipId ?? undefined, dueAt: parsed.data.dueAt ? new Date(parsed.data.dueAt) : undefined, weddingId: membership.weddingId, createdByUserId: user._id });
+    await verifyReferences({ weddingId: membership.weddingId, eventId: parsed.data.eventId, assigneeMembershipId: parsed.data.assigneeMembershipId, vendorId: parsed.data.vendorId });
+    const task = await Task.create({ ...parsed.data, eventId: parsed.data.eventId ?? undefined, vendorId: parsed.data.vendorId ?? undefined, assigneeMembershipId: parsed.data.assigneeMembershipId ?? undefined, dueAt: parsed.data.dueAt ? new Date(parsed.data.dueAt) : undefined, weddingId: membership.weddingId, createdByUserId: user._id });
     response.status(201).json({ data: { task: serializeTask(task) } });
   } catch (error) { next(error); }
 });
@@ -113,13 +120,14 @@ tasksRouter.patch("/tasks/:taskId", async (request, response, next) => {
     if (!parsed.success) { validationFailure(response, parsed.error.issues); return; }
     const task = await Task.findOne({ _id: taskId.data, weddingId: membership.weddingId });
     if (!task) throw new AppError(404, "NOT_FOUND", "Task not found.");
-    await verifyReferences({ weddingId: membership.weddingId, eventId: parsed.data.eventId, assigneeMembershipId: parsed.data.assigneeMembershipId });
+    await verifyReferences({ weddingId: membership.weddingId, eventId: parsed.data.eventId, assigneeMembershipId: parsed.data.assigneeMembershipId, vendorId: parsed.data.vendorId });
     if (parsed.data.title !== undefined) task.title = parsed.data.title;
     if (parsed.data.description !== undefined) task.description = parsed.data.description ?? undefined;
     if (parsed.data.assigneeMembershipId !== undefined) task.assigneeMembershipId = parsed.data.assigneeMembershipId ? new Types.ObjectId(parsed.data.assigneeMembershipId) : undefined;
     if (parsed.data.dueAt !== undefined) task.dueAt = parsed.data.dueAt ? new Date(parsed.data.dueAt) : undefined;
     if (parsed.data.priority !== undefined) task.priority = parsed.data.priority;
     if (parsed.data.eventId !== undefined) task.eventId = parsed.data.eventId ? new Types.ObjectId(parsed.data.eventId) : undefined;
+    if (parsed.data.vendorId !== undefined) task.vendorId = parsed.data.vendorId ? new Types.ObjectId(parsed.data.vendorId) : undefined;
     if (parsed.data.status !== undefined) task.status = parsed.data.status;
     if (parsed.data.notes !== undefined) task.notes = parsed.data.notes ?? undefined;
     await task.save();

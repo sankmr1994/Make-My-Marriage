@@ -91,6 +91,14 @@ This file tracks delivery progress. It is not a replacement for the approved pro
 - Added CSV/XLS/XLSX guest import with a 4 MB / 1,000-row limit, required household-column validation, optional comma-separated active ceremony assignment, and row-numbered duplicate/validation feedback. Import is all-or-nothing for rows that fail pre-write validation.
 - Added documented campaign history records for invitation and RSVP-reminder dispatches. Each new dispatch snapshots the selected family recipients into `emailCampaigns` and `emailRecipients`, records provider submission status per recipient, and is visible from the Guests workspace's **Dispatch history** view. Provider acceptance remains distinct from inbox delivery.
 
+### Vendor management and discovery
+
+- Implemented the Stitch-informed Vendors workspace with active/archived planning records, search, category/status/ceremony filters, status summary cards, detailed vendor records, add/edit forms, ceremony links, archive/restore confirmation, and responsive vendor cards.
+- Added authenticated, wedding-scoped vendor CRUD and ceremony-assignment APIs. Server validation limits vendor access to active Admins and Organisers and verifies that every linked ceremony belongs to the current wedding. Vendor status is stored as `ACTIVE` or `ARCHIVED`; planning stages are stored separately as Shortlisted, Contacted, Contracted, or Declined.
+- Added optional vendor links to task and expense records. Vendor totals are derived exclusively from persisted Expense Ledger records, so the UI never treats an entered quote as a payment or committed spend.
+- Replaced Google Maps discovery with Geoapify planning-lead discovery: city/category search returns up to 15 location-biased results, supports name/speciality filtering, shows the required Geoapify attribution link, provides configuration-unavailable handling, and can save a lead to vendors. Discovery is informational only: it makes no booking, payment, escrow, delivery, or quality claims.
+- Remaining configuration: add `GEOAPIFY_API_KEY` to the API's local and Vercel environments before discovery can return live leads. Legacy `GOOGLE_PLACES` source records remain readable; new discovery records are identified as `GEOAPIFY`.
+
 ### Member and invitation management
 
 - Added the Team workspace with active-member and pending-invitation lists, Admin slot usage, role guidance, and member actions.
@@ -120,7 +128,7 @@ This file tracks delivery progress. It is not a replacement for the approved pro
 
 ## Current state
 
-The repository scaffold, public homepage, signup/login/session flow, first wedding onboarding flow, dashboard, event management, task management, expense management, member/invitation management, and the core guest/RSVP flow with guest import, campaign history, and public RSVP links are implemented. A password-reset completion page is implemented. The remaining protected workspace modules and production verification execution are still outstanding.
+The repository scaffold, public homepage, signup/login/session flow, first wedding onboarding flow, dashboard, event management, task management, expense management, vendor management/discovery, member/invitation management, and the core guest/RSVP flow with guest import, campaign history, and public RSVP links are implemented. A password-reset completion page is implemented. Wedding website publishing, livestream, moderated photo sharing, and production verification execution remain outstanding.
 
 ## Planned V1 milestones
 
@@ -128,7 +136,7 @@ Follow the sequencing in the approved documents and README. Authentication, sess
 
 1. Execute the [production verification checklist](./PRODUCTION_VERIFICATION.md) for signup, sign-in, password reset, invitations, RSVP, and logout.
 2. Wedding website publishing, livestream, and moderated photo sharing.
-3. Vendor management and nearby vendor discovery, followed by security hardening.
+3. Security hardening and operational verification.
 
 These are planned, not completed, until implemented and verified.
 
