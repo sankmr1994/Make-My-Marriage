@@ -99,9 +99,15 @@ type GeoapifyFeature = { properties?: { place_id?: string; name?: string; format
 type GeoapifyCollection = { features?: GeoapifyFeature[] };
 
 async function geoapifyJson(url: URL): Promise<GeoapifyCollection> {
-  const providerResponse = await fetch(url, { headers: { Accept: "application/json" } });
+  // Vercel's TypeScript function compiler can resolve `Response` to Express's
+  // response type in this file. Keep the provider boundary explicit rather
+  // than relying on the ambient fetch Response declaration.
+  const providerResponse = await fetch(url, { headers: { Accept: "application/json" } }) as unknown as {
+    ok: boolean;
+    json: () => Promise<GeoapifyCollection>;
+  };
   if (!providerResponse.ok) throw new AppError(503, "DISCOVERY_UNAVAILABLE", "Vendor discovery is temporarily unavailable. Try again later or add a vendor manually.");
-  return providerResponse.json() as Promise<GeoapifyCollection>;
+  return providerResponse.json();
 }
 
 vendorsRouter.get("/vendors", async (request, response, next) => {
