@@ -1,4 +1,4 @@
-import { Router, type Request, type Response, type Router as ExpressRouter } from "express";
+import { Router, type Request, type Response as ExpressResponse, type Router as ExpressRouter } from "express";
 import { z } from "zod";
 import { env } from "../config/env.js";
 import { Event } from "../models/event.js";
@@ -53,7 +53,7 @@ async function currentMembership(userId: unknown) {
   if (!membership || !["ADMIN", "ORGANISER"].includes(membership.role)) throw new AppError(403, "FORBIDDEN", "Only active wedding Admins and Organisers can manage vendors.");
   return membership;
 }
-function validationFailure(response: Response, issues: z.ZodIssue[]) {
+function validationFailure(response: ExpressResponse, issues: z.ZodIssue[]) {
   response.status(400).json({ error: { code: "VALIDATION_ERROR", message: "The request contains invalid fields.", fieldErrors: Object.fromEntries(issues.map((issue) => [String(issue.path[0] ?? "request"), issue.message])) } });
 }
 function escapedRegex(value: string) { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
