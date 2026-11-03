@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Archive, ArrowDownUp, CalendarDays, Check, ChevronDown, ChevronRight, Circle, CircleDollarSign, Clock3, Heart, LoaderCircle, LockKeyhole, LogOut, MapPin, Pencil, Plus, RotateCcw, Save, Search, Trash2, Users, X } from "lucide-react";
+import { Archive, ArrowDownUp, CalendarDays, Check, ChevronDown, ChevronRight, Circle, CircleDollarSign, Clock3, Globe2, Heart, LoaderCircle, LockKeyhole, LogOut, MapPin, Pencil, Plus, RotateCcw, Save, Search, Trash2, Users, X } from "lucide-react";
 import { apiBaseUrl } from "@/lib/api";
 import { ExpenseWorkspace } from "@/components/dashboard/expense-workspace";
 import { GuestWorkspace } from "@/components/dashboard/guest-workspace";
 import { VendorWorkspace, type WorkspaceVendor } from "@/components/dashboard/vendor-workspace";
+import { WebsiteWorkspace } from "@/components/dashboard/website-workspace";
 
 type Wedding = { id: string; couple: { brideName: string; groomName: string }; weddingDate: string; timeZone: string; location: { address: string; city?: string; state?: string; country?: string } };
 type WeddingEvent = { id: string; name: string; startsAt: string; timeZone: string; venue: { name?: string; address: string; city?: string }; description?: string; status: "ACTIVE" | "ARCHIVED" };
@@ -18,6 +19,7 @@ type TeamInvitation = { id: string; email: string; role: "ADMIN" | "ORGANISER"; 
 type WeddingTask = { id: string; title: string; description?: string; assigneeMembershipId?: string; dueAt?: string; priority: "LOW" | "MEDIUM" | "HIGH"; eventId?: string; vendorId?: string; status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED"; notes?: string; createdAt: string; updatedAt: string };
 type ExpenseTotals = { totalRupees: number; paidRupees: number; unpaidRupees: number };
 type GuestTotals = { families: number; headcount: number; attending: number; attendingHeadcount: number; notAttending: number; pending: number };
+type WebsiteSummary = { slug: string; status: "DRAFT" | "PUBLISHED" };
 type EditSection = "wedding" | string | null;
 
 const suggestedEventNames = ["Engagement", "Roka", "Haldi", "Mehendi", "Sangeet", "Muhurtham", "Wedding Ceremony", "Reception"];
@@ -64,7 +66,7 @@ export function WeddingDashboard() {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [editSection, setEditSection] = useState<EditSection>(null);
-  const [activeView, setActiveView] = useState<"dashboard" | "wedding" | "events" | "tasks" | "expenses" | "guests" | "vendors" | "team">("dashboard");
+  const [activeView, setActiveView] = useState<"dashboard" | "wedding" | "events" | "tasks" | "expenses" | "guests" | "vendors" | "website" | "team">("dashboard");
   const [eventFilter, setEventFilter] = useState<"ALL" | "UPCOMING" | "PAST" | "ARCHIVED">("ALL");
   const [eventSearch, setEventSearch] = useState("");
   const [eventSortOrder, setEventSortOrder] = useState<"ASC" | "DESC">("ASC");
@@ -92,6 +94,7 @@ export function WeddingDashboard() {
   const [taskVendors, setTaskVendors] = useState<WorkspaceVendor[]>([]);
   const [expenseTotals, setExpenseTotals] = useState<ExpenseTotals>({ totalRupees: 0, paidRupees: 0, unpaidRupees: 0 });
   const [guestTotals, setGuestTotals] = useState<GuestTotals>({ families: 0, headcount: 0, attending: 0, attendingHeadcount: 0, notAttending: 0, pending: 0 });
+  const [websiteSummary, setWebsiteSummary] = useState<WebsiteSummary | null>(null);
   const [taskMembers, setTaskMembers] = useState<TeamMember[]>([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [taskDialog, setTaskDialog] = useState<"create" | WeddingTask | null>(null);
@@ -112,14 +115,15 @@ export function WeddingDashboard() {
       if (!accountResponse.ok) throw new Error("We couldn’t load your account.");
       const accountResult = await accountResponse.json() as { data?: { user?: Account; membership?: unknown } };
       if (!accountResult.data?.membership) { router.replace("/welcome"); return; }
-      const [weddingResponse, eventsResponse, tasksResponse, membersResponse, expensesResponse, guestsResponse, vendorsResponse] = await Promise.all([
+      const [weddingResponse, eventsResponse, tasksResponse, membersResponse, expensesResponse, guestsResponse, vendorsResponse, websiteResponse] = await Promise.all([
         fetch(`${apiBaseUrl}/weddings/current`, { credentials: "include", cache: "no-store" }),
         fetch(`${apiBaseUrl}/events?status=ALL`, { credentials: "include", cache: "no-store" }),
         fetch(`${apiBaseUrl}/tasks`, { credentials: "include", cache: "no-store" }),
         fetch(`${apiBaseUrl}/weddings/current/members`, { credentials: "include", cache: "no-store" }),
         fetch(`${apiBaseUrl}/expenses`, { credentials: "include", cache: "no-store" }),
         fetch(`${apiBaseUrl}/guests`, { credentials: "include", cache: "no-store" }),
-        fetch(`${apiBaseUrl}/vendors`, { credentials: "include", cache: "no-store" })
+        fetch(`${apiBaseUrl}/vendors`, { credentials: "include", cache: "no-store" }),
+        fetch(`${apiBaseUrl}/weddings/current/website-config`, { credentials: "include", cache: "no-store" })
       ]);
       if (!weddingResponse.ok) throw new Error(await errorMessage(weddingResponse));
       if (!eventsResponse.ok) throw new Error(await errorMessage(eventsResponse));
@@ -134,11 +138,13 @@ export function WeddingDashboard() {
       const expensesResult = await expensesResponse.json() as { data?: { totals?: ExpenseTotals } };
       const guestsResult = await guestsResponse.json() as { data?: { summary?: GuestTotals } };
       const vendorsResult = vendorsResponse.ok ? await vendorsResponse.json() as { data?: { vendors?: WorkspaceVendor[] } } : null;
+      const websiteResult = websiteResponse.ok ? await websiteResponse.json() as { data?: { website?: WebsiteSummary | null } } : null;
       if (!weddingResult.data?.wedding || !weddingResult.data.membership?.role || !accountResult.data.user) throw new Error("Wedding details were incomplete.");
       setData({ wedding: weddingResult.data.wedding, events: eventsResult.data?.events ?? [], account: accountResult.data.user, role: weddingResult.data.membership.role });
       setTasks(tasksResult.data?.tasks ?? []);
       setTaskMembers(membersResult.data?.members ?? []);
       setTaskVendors(vendorsResult?.data?.vendors ?? []);
+      setWebsiteSummary(websiteResult?.data?.website ?? null);
       setExpenseTotals(expensesResult.data?.totals ?? { totalRupees: 0, paidRupees: 0, unpaidRupees: 0 });
       setGuestTotals(guestsResult.data?.summary ?? { families: 0, headcount: 0, attending: 0, attendingHeadcount: 0, notAttending: 0, pending: 0 });
       setStatus("ready");
@@ -454,6 +460,7 @@ export function WeddingDashboard() {
         <button className={activeView === "expenses" ? "is-active" : ""} type="button" aria-current={activeView === "expenses" ? "page" : undefined} onClick={() => setActiveView("expenses")}><CircleDollarSign size={17} /> Expenses</button>
         <button className={activeView === "guests" ? "is-active" : ""} type="button" aria-current={activeView === "guests" ? "page" : undefined} onClick={() => setActiveView("guests")}><Users size={17} /> Guests &amp; invitations</button>
         <button className={activeView === "vendors" ? "is-active" : ""} type="button" aria-current={activeView === "vendors" ? "page" : undefined} onClick={() => setActiveView("vendors")}><span>▣</span> Vendors</button>
+        <button className={activeView === "website" ? "is-active" : ""} type="button" aria-current={activeView === "website" ? "page" : undefined} onClick={() => setActiveView("website")}><Globe2 size={17} /> Wedding website</button>
         <button className={activeView === "team" ? "is-active" : ""} type="button" aria-current={activeView === "team" ? "page" : undefined} onClick={() => { setActiveView("team"); setTeamTab("ACTIVE"); }}><Users size={17} /> Team <span className="workspace-count">{teamLoaded ? teamMembers.length : "…"}</span></button>
       </nav>
       <div className="workspace-sidebar-bottom"><span className="workspace-avatar">{account.displayName.slice(0, 1).toUpperCase()}</span><span className="workspace-user"><strong>{account.displayName}</strong><small>{account.email}</small></span><button type="button" aria-label="Sign out" title="Sign out" onClick={() => void signOut()} disabled={saving}><LogOut size={17} /></button></div>
@@ -466,6 +473,10 @@ export function WeddingDashboard() {
           <section className="workspace-dashboard-hero" aria-labelledby="workspace-dashboard-title"><div className="workspace-dashboard-hero-copy"><span className="workspace-pill"><span /> MAKE MY MARRIAGE WORKSPACE</span><h1 id="workspace-dashboard-title">{wedding.couple.brideName} <i>&amp;</i> {wedding.couple.groomName}</h1><p className="workspace-dashboard-quote">“Your wedding, thoughtfully together.”</p><p><MapPin size={16} /> {wedding.location.address}{weddingLocation ? ` · ${weddingLocation}` : ""}</p><div className="workspace-dashboard-meta"><span><CalendarDays size={15} /> {formatDate(wedding.weddingDate)}</span><span><Users size={15} /> Your role: {role === "ADMIN" ? "Admin" : "Organiser"}</span></div></div><div className="workspace-dashboard-monogram" aria-hidden="true"><span>{wedding.couple.brideName.slice(0, 1)}<i>&amp;</i>{wedding.couple.groomName.slice(0, 1)}</span><small>{wedding.location.city || "Your celebration"}</small></div></section>
           <section className="workspace-dashboard-metrics" aria-label="Wedding overview"><article><span className="workspace-eyebrow">UPCOMING EVENTS</span><strong>{upcomingEvents.length}</strong><p>{nextEvent ? `Next: ${nextEvent.name}` : "No future ceremonies yet"}</p><button type="button" onClick={() => setActiveView("events")}>View schedule <ChevronRight size={14} /></button></article><article><span className="workspace-eyebrow">TASKS</span><strong>{taskCounts.NOT_STARTED + taskCounts.IN_PROGRESS}</strong><p>{taskCounts.IN_PROGRESS} in progress · {taskCounts.NOT_STARTED} not started</p><button type="button" onClick={() => setActiveView("tasks")}>Open task board <ChevronRight size={14} /></button></article><article><span className="workspace-eyebrow">OVERDUE TASKS</span><strong>{tasks.filter(isOverdue).length}</strong><p>{tasks.some(isOverdue) ? "Needs your attention" : "Nothing overdue"}</p><button type="button" onClick={() => { setTaskDueFilter("OVERDUE"); setActiveView("tasks"); }}>Review tasks <ChevronRight size={14} /></button></article><article><span className="workspace-eyebrow">GUEST FAMILIES</span><strong>{guestTotals.families}</strong><p>{guestTotals.headcount} people invited</p><small>{guestTotals.attending} {guestTotals.attending === 1 ? "family" : "families"} / {guestTotals.attendingHeadcount} people attending · {guestTotals.notAttending} declined · {guestTotals.pending} awaiting</small><button type="button" onClick={() => setActiveView("guests")}>Manage guests <ChevronRight size={14} /></button></article><article><span className="workspace-eyebrow">EXPENSES</span><strong>{formatRupees(expenseTotals.totalRupees)}</strong><p>{formatRupees(expenseTotals.paidRupees)} paid · {formatRupees(expenseTotals.unpaidRupees)} unpaid</p><button type="button" onClick={() => setActiveView("expenses")}>Open expense ledger <ChevronRight size={14} /></button></article></section>
           <section className="workspace-dashboard-grid"><div className="workspace-dashboard-schedule"><div className="workspace-dashboard-section-heading"><div><p className="workspace-eyebrow">CEREMONY SCHEDULE</p><h2>Your upcoming celebrations</h2></div><button type="button" onClick={() => setActiveView("events")}>View all events <ChevronRight size={14} /></button></div>{upcomingEvents.length ? <div className="workspace-dashboard-event-list">{upcomingEvents.slice(0, 3).map((item) => <article key={item.id}><time dateTime={item.startsAt}><span>{formatEventDate(item.startsAt, item.timeZone, { month: "short" }).toUpperCase()}</span><strong>{formatEventDate(item.startsAt, item.timeZone, { day: "2-digit" })}</strong></time><div><h3>{item.name}</h3><p>{item.venue.name || item.venue.address} · {new Intl.DateTimeFormat("en-IN", { timeZone: item.timeZone, hour: "numeric", minute: "2-digit" }).format(new Date(item.startsAt))} IST</p></div><span>{item === nextEvent ? "Next up" : "Scheduled"}</span></article>)}</div> : <div className="workspace-dashboard-empty"><CalendarDays size={20} /><div><strong>No upcoming ceremonies</strong><p>Add the next event to begin your shared itinerary.</p></div><button className="button button--dark" type="button" onClick={() => { setNewEventName(""); setDescriptionLength(0); setEditSection("create"); }}><Plus size={15} /> Create event</button></div>}</div><aside className="workspace-dashboard-brief"><p className="workspace-eyebrow">YOUR WORKSPACE</p><h2>Keep the essentials together.</h2><p>Wedding details, ceremonies, and your planning team are ready whenever you need them.</p><dl><div><dt>Timezone</dt><dd>{wedding.timeZone}</dd></div><div><dt>Active events</dt><dd>{activeEvents.length}</dd></div><div><dt>Archived events</dt><dd>{eventCounts.ARCHIVED}</dd></div></dl><button type="button" onClick={() => setActiveView("wedding")}>Review wedding details <ChevronRight size={14} /></button></aside></section>
+          <section className="workspace-dashboard-feature-links" aria-label="Vendor and website overview">
+            <article><div><span className="workspace-eyebrow">VENDORS</span><strong>{taskVendors.length}</strong><p>{taskVendors.filter((vendor) => vendor.planningStatus === "CONTRACTED").length} contracted · {taskVendors.filter((vendor) => vendor.planningStatus === "SHORTLISTED").length} shortlisted</p></div><button type="button" onClick={() => setActiveView("vendors")}>Open vendors <ChevronRight size={14} /></button></article>
+            <article><div><span className="workspace-eyebrow">WEDDING WEBSITE</span><strong>{websiteSummary?.status === "PUBLISHED" ? "Live" : websiteSummary ? "Draft" : "Not set up"}</strong><p>{websiteSummary?.status === "PUBLISHED" ? `Public at /wedding/${websiteSummary.slug}` : "Set up the public celebration page."}</p></div><button type="button" onClick={() => setActiveView("website")}>{websiteSummary?.status === "PUBLISHED" ? "Manage website" : "Set up website"} <ChevronRight size={14} /></button></article>
+          </section>
         </>}
         {activeView === "tasks" && <section className="workspace-tasks">
           <div className="workspace-tasks-heading"><div><p className="workspace-eyebrow">WEDDING ATELIER <span>·</span> PLANNING &amp; OPERATIONS</p><h1>Tasks &amp; planning</h1><p>Coordinate responsibilities, track ceremonial deliverables, and keep your wedding team synchronised without clutter.</p></div><button className="button button--dark" type="button" onClick={() => openNewTask()}><Plus size={16} /> Add task</button></div>
@@ -478,6 +489,7 @@ export function WeddingDashboard() {
         {activeView === "expenses" && <ExpenseWorkspace events={events} timeZone={wedding.timeZone} onTotalsChange={setExpenseTotals} />}
         {activeView === "guests" && <GuestWorkspace events={events} onSummaryChange={setGuestTotals} />}
         {activeView === "vendors" && <VendorWorkspace events={events} city={wedding.location.city} />}
+        {activeView === "website" && <WebsiteWorkspace events={events} couple={wedding.couple} />}
         {activeView === "events" && <>
           <div className="workspace-events-heading"><div><p className="workspace-eyebrow">CEREMONIAL REGISTRY <span>·</span> {wedding.location.city} SCHEDULE</p><h1>Ceremonies &amp; Events</h1><p>Plan your ceremonial timeline. All times are shown in {wedding.timeZone}.</p></div><button className="button button--dark" type="button" onClick={() => { setNewEventName(""); setDescriptionLength(0); setEditSection("create"); }}><Plus size={16} /> Create event</button></div>
           <div className="workspace-event-controls"><div className="workspace-event-tabs" role="tablist" aria-label="Filter events">{(["ALL", "UPCOMING", "PAST", "ARCHIVED"] as const).map((filter) => <button type="button" role="tab" aria-selected={eventFilter === filter} className={eventFilter === filter ? "is-active" : ""} key={filter} onClick={() => setEventFilter(filter)}>{filter === "ALL" ? "All events" : filter[0] + filter.slice(1).toLowerCase()} <span>{eventCounts[filter]}</span></button>)}</div><label className="workspace-event-search"><Search size={16} /><input aria-label="Filter events by name, venue, or date" placeholder="Filter by event, venue or date…" value={eventSearch} onChange={(event) => setEventSearch(event.target.value)} /></label><div className="workspace-sort-control" ref={sortControlRef}><button ref={sortTriggerRef} className="workspace-sort-trigger" type="button" aria-haspopup="menu" aria-expanded={sortMenuOpen} aria-label={`Sort events: ${eventSortOrder === "ASC" ? "Soonest first" : "Furthest date first"}`} onClick={() => setSortMenuOpen((open) => !open)}><ArrowDownUp size={15} /><span>{eventSortOrder === "ASC" ? "Soonest first" : "Furthest date first"}</span><ChevronDown className={sortMenuOpen ? "is-open" : ""} size={14} /></button>{sortMenuOpen && <div className="workspace-sort-menu" role="menu" aria-label="Sort events"><button type="button" role="menuitemradio" aria-checked={eventSortOrder === "ASC"} onClick={() => { setEventSortOrder("ASC"); setSortMenuOpen(false); }}>Soonest first{eventSortOrder === "ASC" && <Check size={14} />}</button><button type="button" role="menuitemradio" aria-checked={eventSortOrder === "DESC"} onClick={() => { setEventSortOrder("DESC"); setSortMenuOpen(false); }}>Furthest date first{eventSortOrder === "DESC" && <Check size={14} />}</button></div>}</div></div>

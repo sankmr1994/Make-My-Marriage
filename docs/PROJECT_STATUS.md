@@ -1,6 +1,6 @@
 # Project Status
 
-**Last updated:** 2026-11-02
+**Last updated:** 2026-11-03
 **Product scope source:** The approved V1 documents in `docs/prd/`, `docs/architecture/`, `docs/database/`, and `docs/api/`.
 
 This file tracks delivery progress. It is not a replacement for the approved product requirements.
@@ -99,6 +99,15 @@ This file tracks delivery progress. It is not a replacement for the approved pro
 - Replaced Google Maps discovery with Geoapify planning-lead discovery: city/category search returns up to 15 location-biased results, supports name/speciality filtering, shows the required Geoapify attribution link, provides configuration-unavailable handling, and can save a lead to vendors. Discovery is informational only: it makes no booking, payment, escrow, delivery, or quality claims.
 - Remaining configuration: add `GEOAPIFY_API_KEY` to the API's local and Vercel environments before discovery can return live leads. Legacy `GOOGLE_PLACES` source records remain readable; new discovery records are identified as `GEOAPIFY`.
 
+### Wedding website publishing
+
+- Implemented the V1 template-based Wedding Website workspace from the approved Stitch settings, confirmation, and public-site references. Admins and Organisers can choose one of the four approved themes (Traditional, Royal, Floral, or Modern), configure the public website address, edit couple display names, welcome message, story, selected public ceremonies, and explicitly opt in to displaying the saved wedding email and/or phone number.
+- Added the documented authenticated website configuration, theme-list, publish, and unpublish APIs, plus a public `GET /public/websites/:slug` API. A Mongoose `websiteConfigs` record is limited to one per wedding and uses a globally unique normalized slug; reserved application paths are rejected.
+- Publishing is a deliberate confirmation step. Draft/unpublished sites return a safe `404` from the public API. The public `/wedding/[slug]` page has no workspace chrome or sign-in requirement, shows only approved website fields, and does not expose guests, RSVP records, expenses, team members, planning notes, or any other private workspace data.
+- The public site directs guests to their secure emailed RSVP link rather than introducing an insecure public RSVP form. Livestream, photo sharing, accommodation/registry content, and arbitrary HTML or scripts remain excluded until their separately approved V1 capabilities exist.
+- Guest invitation and RSVP-reminder emails now include the public wedding-website URL only when that wedding has been published. The public link is supplementary; each family’s opaque RSVP link remains the only way to view or change that family’s RSVP response.
+- Verification: API and web TypeScript checks passed using each app's local compiler; targeted API and web ESLint checks passed; `git diff --check` passed. The workspace-level pnpm typecheck could not run in this sandbox because pnpm attempted to replace its modules directory without a TTY. Manual browser and production verification remain pending.
+
 ### Member and invitation management
 
 - Added the Team workspace with active-member and pending-invitation lists, Admin slot usage, role guidance, and member actions.
@@ -128,14 +137,14 @@ This file tracks delivery progress. It is not a replacement for the approved pro
 
 ## Current state
 
-The repository scaffold, public homepage, signup/login/session flow, first wedding onboarding flow, dashboard, event management, task management, expense management, vendor management/discovery, member/invitation management, and the core guest/RSVP flow with guest import, campaign history, and public RSVP links are implemented. A password-reset completion page is implemented. Wedding website publishing, livestream, moderated photo sharing, and production verification execution remain outstanding.
+The repository scaffold, public homepage, signup/login/session flow, first wedding onboarding flow, dashboard, event management, task management, expense management, vendor management/discovery, member/invitation management, guest/RSVP flow with guest import and campaign history, password-reset completion, and wedding website publishing are implemented. Livestream, moderated photo sharing, and production verification execution remain outstanding.
 
 ## Planned V1 milestones
 
 Follow the sequencing in the approved documents and README. Authentication, sessions, route protection, wedding onboarding, event management, task management, and member invitations are implemented. Remaining work includes:
 
 1. Execute the [production verification checklist](./PRODUCTION_VERIFICATION.md) for signup, sign-in, password reset, invitations, RSVP, and logout.
-2. Wedding website publishing, livestream, and moderated photo sharing.
+2. Livestream and moderated photo sharing.
 3. Security hardening and operational verification.
 
 These are planned, not completed, until implemented and verified.

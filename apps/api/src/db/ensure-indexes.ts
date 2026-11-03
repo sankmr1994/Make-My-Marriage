@@ -15,6 +15,7 @@ import { EmailCampaign } from "../models/email-campaign.js";
 import { EmailRecipient } from "../models/email-recipient.js";
 import { Vendor } from "../models/vendor.js";
 import { VendorEventAssignment } from "../models/vendor-event-assignment.js";
+import { WebsiteConfig } from "../models/website-config.js";
 
 export async function ensureCoreIndexes(): Promise<void> {
   await Promise.all([
@@ -34,6 +35,7 @@ export async function ensureCoreIndexes(): Promise<void> {
     EmailRecipient.createIndexes(),
     Vendor.createIndexes(),
     VendorEventAssignment.createIndexes(),
+    WebsiteConfig.createIndexes(),
     AuthRateLimit.createIndexes()
   ]);
   console.info("Core account and session indexes are ready.");
