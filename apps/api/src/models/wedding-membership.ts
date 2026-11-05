@@ -1,9 +1,11 @@
 import { model, Schema, Types } from "mongoose";
+import { organiserPermissionKeys } from "../utils/organiser-permissions.js";
 
 export type WeddingMembershipDocument = {
   weddingId: Types.ObjectId;
   userId: Types.ObjectId;
   role: "ADMIN" | "ORGANISER";
+  permissions?: string[];
   status: "ACTIVE" | "REMOVED";
   invitedByUserId?: Types.ObjectId;
   joinedAt: Date;
@@ -16,6 +18,7 @@ const membershipSchema = new Schema<WeddingMembershipDocument>({
   weddingId: { type: Schema.Types.ObjectId, required: true, ref: "Wedding" },
   userId: { type: Schema.Types.ObjectId, required: true, ref: "User" },
   role: { type: String, required: true, enum: ["ADMIN", "ORGANISER"] },
+  permissions: { type: [{ type: String, trim: true, enum: organiserPermissionKeys }], default: undefined },
   status: { type: String, required: true, enum: ["ACTIVE", "REMOVED"] },
   invitedByUserId: { type: Schema.Types.ObjectId, ref: "User" },
   joinedAt: { type: Date, required: true },

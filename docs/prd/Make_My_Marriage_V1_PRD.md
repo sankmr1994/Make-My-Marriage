@@ -121,7 +121,7 @@ Make My Marriage should become the digital operating layer for an Indian wedding
 | **Role**  | **Typical user**                                        | **Primary need**                                                                                            |
 |-----------|---------------------------------------------------------|-------------------------------------------------------------------------------------------------------------|
 | Admin     | Bride and/or Groom                                      | Owns the wedding workspace and has full control. Manages organisers and can operate all V1 modules.         |
-| Organiser | Family member, sibling, or professional wedding planner | Runs wedding operations. Has operational access comparable to Admin but cannot add or remove organisers.    |
+| Organiser | Family member, sibling, or professional wedding planner | Runs only the wedding operations an Admin has granted for this wedding. Cannot manage team membership or permissions. |
 | Guest     | Invited wedding participant                             | Does not log in. Uses secure links or QR codes for invitation/RSVP, website, livestream, and photo sharing. |
 
 ## 3.1 Primary use cases
@@ -198,7 +198,7 @@ V1 uses three roles only. This is a deliberate simplification intended to keep a
 
 ## 5.1 Admin vs Organiser rule
 
-Admin and Organiser have comparable operational access for V1. The key difference is organisational authority: Admin can invite members and remove any active member, including the partner Admin, except the wedding workspace creator. Organisers cannot invite or remove members. Removing a member revokes only that wedding workspace membership; it does not delete the person's account or wedding records.
+Admins have full access to all wedding modules and alone can invite/remove members or change organiser permissions. Each Organiser has wedding-specific capabilities; Admins can grant module viewing and separate create/edit, archive, delete, moderation, publishing, import, invitation, and guest-link actions. Existing Organisers without an explicit permission list retain their previous access until an Admin changes it. New Organisers receive the Standard preset by default, with Full operational access as an invitation choice. Organisers can view all tasks when task viewing is granted. Removing a member revokes only that wedding workspace membership; it does not delete the person's account or wedding records. The API enforces each permission on every authenticated request, with denial by default for unlisted actions.
 
 ## 5.2 Guest access principle
 
@@ -294,6 +294,11 @@ Recommended primary navigation:
 | FR-COL-05 | The system enforces permissions on both UI and API/service layers.         |
 | FR-COL-06 | An Admin can invite the other partner as a second Admin; a wedding has at most two Admins. |
 | FR-COL-07 | The wedding creator's membership cannot be removed by any member. Removing another member revokes workspace access without deleting the account or wedding records. |
+| FR-COL-08 | Admin can grant a Standard or Full organiser permission preset when inviting an Organiser. |
+| FR-COL-09 | Admin can view and change a current Organiser's wedding-specific permissions; Organisers cannot grant or change access. |
+| FR-COL-10 | Permission controls cover wedding details, events, tasks, expenses, guests/invitations, vendors, website, and photos, with separate read and high-impact actions where applicable. |
+| FR-COL-11 | Existing Organisers without a saved permission list retain prior operational access until explicitly edited. |
+| FR-COL-12 | Organisers granted task view see all wedding tasks; task assignment is not used as an access boundary. |
 
 ## 7.5 Task Management
 

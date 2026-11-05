@@ -11,11 +11,12 @@ import { Wedding } from "../models/wedding.js";
 import { WeddingMembership } from "../models/wedding-membership.js";
 import { AppError } from "../utils/app-error.js";
 import { createOpaqueToken, hashOpaqueToken } from "../utils/credentials.js";
+import { effectiveOrganiserPermissions, organiserPermissionsSchema, standardOrganiserPermissions } from "../utils/organiser-permissions.js";
 
 export const membershipInvitationsRouter: ExpressRouter = Router();
 membershipInvitationsRouter.use(enforceRequestOrigin, (_request, response, next) => { response.setHeader("Cache-Control", "no-store"); next(); });
 
-const createInvitationSchema = z.object({ email: z.email().trim().max(254), role: z.enum(["ADMIN", "ORGANISER"]) }).strict();
+const createInvitationSchema = z.object({ email: z.email().trim().max(254), role: z.enum(["ADMIN", "ORGANISER"]), organiserPermissions: organiserPermissionsSchema.optional() }).strict().refine((value) => value.role === "ORGANISER" || value.organiserPermissions === undefined, "Admin invitations do not accept organiser permissions.");
 const acceptInvitationSchema = z.object({ token: z.string().min(20).max(200) }).strict();
 const invitationIdSchema = z.string().regex(/^[a-f\d]{24}$/i);
 const INVITATION_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
@@ -81,20 +82,34 @@ async function submitInvitationEmail(input: { email: string; token: string; role
     return "FAILED" as const;
   }
 }
-function serializeInvitation(item: { _id: Types.ObjectId; emailNormalized: string; role: string; status: string; emailSubmissionStatus: string; expiresAt: Date; createdAt: Date }) {
-  return { id: String(item._id), email: item.emailNormalized, role: item.role, status: item.status, emailSubmissionStatus: item.emailSubmissionStatus, expiresAt: item.expiresAt, createdAt: item.createdAt };
+function serializeInvitation(item: { _id: Types.ObjectId; emailNormalized: string; role: string; organiserPermissions?: string[]; status: string; emailSubmissionStatus: string; expiresAt: Date; createdAt: Date }) {
+  return { id: String(item._id), email: item.emailNormalized, role: item.role, organiserPermissions: item.role === "ORGANISER" ? effectiveOrganiserPermissions("ORGANISER", item.organiserPermissions ?? standardOrganiserPermissions) : undefined, status: item.status, emailSubmissionStatus: item.emailSubmissionStatus, expiresAt: item.expiresAt, createdAt: item.createdAt };
 }
+
+membershipInvitationsRouter.patch("/weddings/current/members/:membershipId/permissions", async (request, response, next) => {
+  try {
+    const user = await authenticatedUser(request);
+    const { membership } = await requireAdmin(user._id);
+    const id = invitationIdSchema.safeParse(request.params.membershipId);
+    const parsed = z.object({ permissions: organiserPermissionsSchema }).strict().safeParse(request.body);
+    if (!id.success) { validationFailure(response, id.error.issues); return; }
+    if (!parsed.success) { validationFailure(response, parsed.error.issues); return; }
+    const updated = await WeddingMembership.findOneAndUpdate({ _id: id.data, weddingId: membership.weddingId, role: "ORGANISER", status: "ACTIVE" }, { $set: { permissions: parsed.data.permissions } }, { new: true, runValidators: true }).lean();
+    if (!updated) throw new AppError(404, "NOT_FOUND", "Active organiser not found.");
+    response.status(200).json({ data: { permissions: effectiveOrganiserPermissions(updated.role, updated.permissions) } });
+  } catch (error) { next(error); }
+});
 
 membershipInvitationsRouter.get("/weddings/current/members", async (request, response, next) => {
   try {
     const user = await authenticatedUser(request);
     const { membership, wedding } = await currentMembership(user._id);
-    const memberships = await WeddingMembership.find({ weddingId: membership.weddingId, status: "ACTIVE" }).sort({ joinedAt: 1 }).lean();
+    const memberships = await WeddingMembership.find({ weddingId: membership.weddingId, status: "ACTIVE" }).select("weddingId userId role permissions joinedAt").sort({ joinedAt: 1 }).lean();
     const users = await User.find({ _id: { $in: memberships.map((item) => item.userId) }, status: "ACTIVE" }).select("displayName email").lean();
     const byId = new Map(users.map((item) => [String(item._id), item]));
     response.status(200).json({ data: { members: memberships.flatMap((item) => {
       const member = byId.get(String(item.userId));
-      return member ? [{ id: String(item._id), userId: String(item.userId), displayName: member.displayName, email: member.email, role: item.role, joinedAt: item.joinedAt, isWorkspaceCreator: String(item.userId) === String(wedding.createdByUserId) }] : [];
+      return member ? [{ id: String(item._id), userId: String(item.userId), displayName: member.displayName, email: member.email, role: item.role, permissions: effectiveOrganiserPermissions(item.role, item.permissions), joinedAt: item.joinedAt, isWorkspaceCreator: String(item.userId) === String(wedding.createdByUserId) }] : [];
     }) } });
   } catch (error) { next(error); }
 });
@@ -133,7 +148,8 @@ membershipInvitationsRouter.post("/weddings/current/membership-invitations", asy
       if (activeAdmins + pendingAdminInvitations >= 2) throw new AppError(409, "ADMIN_LIMIT_REACHED", "A wedding can have at most two Admins.");
     }
     const rawToken = createOpaqueToken();
-    const invitation = await MembershipInvitation.create({ weddingId: membership.weddingId, emailNormalized, role: parsed.data.role, invitedByUserId: user._id, tokenHash: hashOpaqueToken(rawToken), status: "PENDING", emailSubmissionStatus: "NOT_CONFIGURED", expiresAt: new Date(Date.now() + INVITATION_LIFETIME_MS) });
+    const organiserPermissions = parsed.data.role === "ORGANISER" ? (parsed.data.organiserPermissions ?? standardOrganiserPermissions) : undefined;
+    const invitation = await MembershipInvitation.create({ weddingId: membership.weddingId, emailNormalized, role: parsed.data.role, organiserPermissions, invitedByUserId: user._id, tokenHash: hashOpaqueToken(rawToken), status: "PENDING", emailSubmissionStatus: "NOT_CONFIGURED", expiresAt: new Date(Date.now() + INVITATION_LIFETIME_MS) });
     const emailSubmissionStatus = await submitInvitationEmail({ email: parsed.data.email.trim(), token: rawToken, role: parsed.data.role, wedding, inviter: user.displayName });
     invitation.emailSubmissionStatus = emailSubmissionStatus;
     await invitation.save();
@@ -162,7 +178,7 @@ membershipInvitationsRouter.post("/weddings/current/membership-invitations/:invi
     const rawToken = createOpaqueToken();
     let replacement;
     try {
-      replacement = await MembershipInvitation.create({ weddingId: membership.weddingId, emailNormalized: oldEmail, role: current.role, invitedByUserId: user._id, tokenHash: hashOpaqueToken(rawToken), status: "PENDING", emailSubmissionStatus: "NOT_CONFIGURED", expiresAt: new Date(Date.now() + INVITATION_LIFETIME_MS) });
+      replacement = await MembershipInvitation.create({ weddingId: membership.weddingId, emailNormalized: oldEmail, role: current.role, organiserPermissions: current.organiserPermissions, invitedByUserId: user._id, tokenHash: hashOpaqueToken(rawToken), status: "PENDING", emailSubmissionStatus: "NOT_CONFIGURED", expiresAt: new Date(Date.now() + INVITATION_LIFETIME_MS) });
     } catch (error) {
       if (!await MembershipInvitation.exists({ weddingId: membership.weddingId, emailNormalized: oldEmail, status: "PENDING" })) {
         await MembershipInvitation.updateOne({ _id: current._id, status: "REVOKED" }, { $set: { status: "PENDING" } }).catch(() => undefined);
@@ -255,14 +271,14 @@ membershipInvitationsRouter.post("/membership-invitations/accept", async (reques
       await session.withTransaction(async () => {
         const claimed = await MembershipInvitation.findOneAndUpdate({ _id: invitation._id, status: "PENDING", expiresAt: { $gt: new Date() } }, { $set: { status: "ACCEPTED", acceptedByUserId: user._id, acceptedAt: new Date() } }, { new: true, session });
         if (!claimed) throw new AppError(410, "TOKEN_EXPIRED_OR_REVOKED", "This invitation is invalid, expired, or revoked.");
-        await WeddingMembership.create([{ weddingId: invitation.weddingId, userId: user._id, role: invitation.role, status: "ACTIVE", invitedByUserId: invitation.invitedByUserId, joinedAt: new Date() }], { session });
+        await WeddingMembership.create([{ weddingId: invitation.weddingId, userId: user._id, role: invitation.role, permissions: invitation.role === "ORGANISER" ? (invitation.organiserPermissions ?? standardOrganiserPermissions) : undefined, status: "ACTIVE", invitedByUserId: invitation.invitedByUserId, joinedAt: new Date() }], { session });
       });
     } catch (error) {
       if (!(error instanceof mongoose.mongo.MongoServerError) || error.code !== 20) throw error;
       const claimed = await MembershipInvitation.findOneAndUpdate({ _id: invitation._id, status: "PENDING", expiresAt: { $gt: new Date() } }, { $set: { status: "ACCEPTED", acceptedByUserId: user._id, acceptedAt: new Date() } }, { new: true });
       if (!claimed) throw new AppError(410, "TOKEN_EXPIRED_OR_REVOKED", "This invitation is invalid, expired, or revoked.");
       try {
-        await WeddingMembership.create({ weddingId: invitation.weddingId, userId: user._id, role: invitation.role, status: "ACTIVE", invitedByUserId: invitation.invitedByUserId, joinedAt: new Date() });
+        await WeddingMembership.create({ weddingId: invitation.weddingId, userId: user._id, role: invitation.role, permissions: invitation.role === "ORGANISER" ? (invitation.organiserPermissions ?? standardOrganiserPermissions) : undefined, status: "ACTIVE", invitedByUserId: invitation.invitedByUserId, joinedAt: new Date() });
       } catch (membershipError) {
         await MembershipInvitation.updateOne({ _id: invitation._id, status: "ACCEPTED", acceptedByUserId: user._id }, { $set: { status: "PENDING" }, $unset: { acceptedByUserId: 1, acceptedAt: 1 } });
         throw membershipError;

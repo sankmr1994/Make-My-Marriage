@@ -1,9 +1,11 @@
 import { model, Schema, Types } from "mongoose";
+import { organiserPermissionKeys } from "../utils/organiser-permissions.js";
 
 export type MembershipInvitationDocument = {
   weddingId: Types.ObjectId;
   emailNormalized: string;
   role: "ADMIN" | "ORGANISER";
+  organiserPermissions?: string[];
   invitedByUserId: Types.ObjectId;
   tokenHash: string;
   status: "PENDING" | "ACCEPTED" | "REVOKED" | "EXPIRED";
@@ -19,6 +21,7 @@ const membershipInvitationSchema = new Schema<MembershipInvitationDocument>({
   weddingId: { type: Schema.Types.ObjectId, required: true, ref: "Wedding" },
   emailNormalized: { type: String, required: true, trim: true, lowercase: true, maxlength: 254 },
   role: { type: String, required: true, enum: ["ADMIN", "ORGANISER"] },
+  organiserPermissions: { type: [{ type: String, trim: true, enum: organiserPermissionKeys }], default: undefined },
   invitedByUserId: { type: Schema.Types.ObjectId, required: true, ref: "User" },
   tokenHash: { type: String, required: true, unique: true, select: false },
   status: { type: String, required: true, enum: ["PENDING", "ACCEPTED", "REVOKED", "EXPIRED"] },

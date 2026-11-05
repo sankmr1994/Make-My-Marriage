@@ -14,6 +14,7 @@ import { guestsRouter } from "./routes/guests.js";
 import { vendorsRouter } from "./routes/vendors.js";
 import { websiteRouter } from "./routes/website.js";
 import { photosRouter } from "./routes/photos.js";
+import { enforceOrganiserPermissions } from "./middleware/organiser-permissions.js";
 
 const require = createRequire(import.meta.url);
 const helmet = require("helmet") as typeof import("helmet").default;
@@ -30,6 +31,7 @@ app.use(express.json({ limit: "1mb" }));
 app.use("/api/v1", healthRouter);
 app.use("/api/v1", requireDatabase);
 app.use("/api/v1", authRouter);
+app.use("/api/v1", enforceOrganiserPermissions);
 app.use("/api/v1", weddingsRouter);
 app.use("/api/v1", membershipInvitationsRouter);
 app.use("/api/v1", tasksRouter);

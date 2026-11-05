@@ -852,3 +852,10 @@ button { font: inherit; }
 .workspace-guest-photo-qr button svg { width: 14px; height: 14px; flex: 0 0 14px; }
 @media (max-width: 680px) { .workspace-photo-qr { align-items: flex-start; flex-direction: column; }.workspace-guest-photo-link-results article { grid-template-columns: 1fr; }.workspace-guest-photo-qr { justify-items: start; } }
 @media (max-width: 680px) { .workspace-photo-share, .workspace-photo-list-heading { align-items: flex-start; flex-direction: column; }.workspace-photo-filter-tools { align-items: flex-start; flex-direction: column; }.workspace-photo-share-result { align-items: stretch; flex-direction: column; }.workspace-photo-links article { align-items: flex-start; flex-wrap: wrap; }.workspace-photo-link-dates { flex: 1 1 100%; flex-direction: column; }.workspace-photo-link-filters, .workspace-photo-pagination { align-items: stretch; flex-direction: column; }.workspace-photo-link-filters label:first-child { max-width: none; flex-basis: auto; }.workspace-photo-link-filters label:last-child select { width: 100%; }.workspace-photo-pagination > div { justify-content: space-between; }.public-gallery-filter { align-items: flex-start; flex-direction: column; }.workspace-photo-grid, .public-photo-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 165px), 1fr)); gap: .65rem; } }
+.organiser-permissions-dialog { width: min(860px, calc(100vw - 32px)); max-height: min(88vh, 900px); overflow-y: auto; }
+.organiser-permission-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 20px 0; }
+.organiser-permission-groups fieldset { min-width: 0; margin: 0; padding: 14px; border: 1px solid #dedbd2; background: #fffdfa; }
+.organiser-permission-groups legend { padding: 0 6px; font-weight: 700; }
+.organiser-permission-groups label { display: flex; align-items: flex-start; gap: 10px; margin: 10px 0; color: #474a42; font-size: 14px; }
+.organiser-permission-groups input { margin-top: 3px; accent-color: #747c68; }
+@media (max-width: 640px) { .organiser-permission-groups { grid-template-columns: 1fr; } }

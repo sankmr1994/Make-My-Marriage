@@ -131,21 +131,17 @@ Use simple email/password authentication with server-side sessions stored throug
 
 | Capability | Admin | Organiser | Guest |
 |---|---:|---:|---:|
-| View/manage wedding details | Yes | Yes | Only public/purpose-scoped data |
-| Create/edit/archive events | Yes | Yes | No |
-| Manage tasks | Yes | Yes | No |
-| Manage expenses | Yes | Yes | No |
-| Manage guest list and invitations | Yes | Yes | No |
-| Send RSVP reminders | Yes | Yes | No |
-| Manage vendors and discovery | Yes | Yes | No |
-| Assign vendors to events | Yes | Yes | No |
-| Link vendors to tasks/expenses | Yes | Yes | No |
-| Configure/publish website and livestream | Yes | Yes | View published experience only |
-| Moderate/delete photos | Yes | Yes | Upload/view only through valid links |
+| View/manage wedding details | Full | Per-wedding permission | Only public/purpose-scoped data |
+| Events, tasks, expenses, guests/invitations, vendors, website, photos | Full | Per-module view/action permissions | No |
+| Team membership and organiser permissions | Yes | No | No |
 | Invite members / remove members except creator | **Yes** | **No** | No |
 | Create or manage membership invitations | **Yes** | **No** | No |
 
 `GUEST` is not a `weddingMemberships.role`. Guests do not have a management account unless they independently sign up and are invited into a management role.
+
+Organiser permissions are stored on the wedding membership and checked server-side on every workspace request. Admin bypasses organiser capabilities. An absent permission list on a legacy Organiser means preserve prior full operational access; newly invited Organisers receive the Standard preset unless the inviter selects Full. Permission keys are `wedding.edit`; `events.view/manage/archive`; `tasks.view/manage/delete`; `expenses.view/manage/delete`; `guests.view/manage/import/sendInvitations`; `vendors.view/manage/discover`; `website.view/edit/publish`; and `photos.view/upload/moderate/delete/manageLinks`. Non-view actions require that module's view permission. Unknown protected workspace actions are denied to Organisers by default. Organiser task view includes all tasks; it is not limited to assignments.
+
+The Standard preset grants event view/manage/archive, task view/manage, guest view/manage, vendor view/manage/discovery, website view, and photo view/upload/moderation. It withholds wedding-detail edits, expenses, guest import and email dispatch, website editing/publishing, permanent photo deletion, and photo-link administration. Full grants all listed operational permissions; neither preset grants team management to Organisers.
 
 ### 3.3 Wedding scoping
 
@@ -179,6 +175,7 @@ All routes in this table are relative to `/api/v1`.
 | `PATCH` | `/weddings/current` | Admin/Organiser | Update wedding information |
 | `GET` | `/weddings/current/dashboard` | Admin/Organiser | Dashboard counts and summaries |
 | `GET` | `/weddings/current/members` | Admin/Organiser | List active members, roles, and workspace-creator protection status |
+| `PATCH` | `/weddings/current/members/:membershipId/permissions` | Admin only | Replace an active Organiser's validated wedding-specific capability list |
 | `GET` | `/weddings/current/membership-invitations` | Admin only | List pending/recent membership invitations |
 | `POST` | `/weddings/current/membership-invitations` | Admin only | Invite an Organiser or the second Admin/partner where allowed |
 | `POST` | `/membership-invitations/accept` | Authenticated with valid invitation token | Accept invitation and create membership |

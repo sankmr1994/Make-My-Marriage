@@ -7,6 +7,7 @@ import { PasswordResetToken } from "../models/password-reset-token.js";
 import { Session } from "../models/session.js";
 import { User } from "../models/user.js";
 import { WeddingMembership } from "../models/wedding-membership.js";
+import { effectiveOrganiserPermissions } from "../utils/organiser-permissions.js";
 import { createOpaqueToken, hashOpaqueToken, hashPassword, verifyPassword } from "../utils/credentials.js";
 
 const SESSION_COOKIE = "mmm_session";
@@ -132,10 +133,10 @@ authRouter.get("/auth/me", async (request, response, next) => {
       response.status(401).json({ error: { code: "UNAUTHENTICATED", message: "Sign in to continue." } });
       return;
     }
-    const membership = await WeddingMembership.findOne({ userId: current.user._id, status: "ACTIVE" }).select("weddingId role").lean();
+    const membership = await WeddingMembership.findOne({ userId: current.user._id, status: "ACTIVE" }).select("weddingId role permissions").lean();
     response.status(200).json({ data: {
       user: { id: current.user.id, displayName: current.user.displayName, email: current.user.email },
-      membership: membership ? { weddingId: String(membership.weddingId), role: membership.role } : null
+      membership: membership ? { weddingId: String(membership.weddingId), role: membership.role, permissions: effectiveOrganiserPermissions(membership.role, membership.permissions) } : null
     } });
   } catch (error) { next(error); }
 });

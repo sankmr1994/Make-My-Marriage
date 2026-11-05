@@ -1,6 +1,6 @@
 # Project Status
 
-**Last updated:** 2026-11-03
+**Last updated:** 2026-11-05
 **Product scope source:** The approved V1 documents in `docs/prd/`, `docs/architecture/`, `docs/database/`, and `docs/api/`.
 
 This file tracks delivery progress. It is not a replacement for the approved product requirements.
@@ -136,6 +136,9 @@ This file tracks delivery progress. It is not a replacement for the approved pro
 - Manual browser verification on localhost:3000: created a fresh dummy account with a valid password, confirmed signup signs in, session survives reload, login accepts case-insensitive email and rejects password case changes, and logout disables repeated clicks, returns home, and invalidates direct `/welcome` access. Checked required signup/login fields, malformed email, password mismatch, duplicate signup emails, unknown account, wrong password, and show/hide password. Invalid credentials use a generic message; server-side signup password errors explain the 12-character minimum. The password-reset completion page is implemented; deployed verification remains pending.
 
 ## Current state
+
+- Implemented wedding-scoped Organiser access controls across wedding details, events, tasks, expenses, guests/invitations, vendors/discovery, website publishing, and guest photos. Admins keep full access and can set permissions for each active Organiser; they can choose Standard or Full operational access on invitations. Organisers cannot manage team membership or grant permissions. Existing Organisers with no saved permission list retain their previous operational access until an Admin edits them. Task visibility is wedding-wide when granted. The API enforces permission checks server-side with deny-by-default behavior for unknown protected workspace actions; the dashboard hides denied modules and avoids loading their data, with photo controls reflecting upload/moderation/delete/link capabilities.
+- This is an explicitly user-approved extension to the earlier V1 role matrix, which gave Organisers broad operational access. The PRD, architecture, API, and database documents have been updated to make the new rule authoritative. API and web TypeScript checks and targeted ESLint pass; interactive/browser authorization flows have not yet been run.
 
 - Added the interlocking charcoal-and-sage wedding-rings mark as an SVG favicon, a 512×512 transparent PNG Apple touch icon, and web-manifest icons. The source assets described by the user were not present in the workspace, so these equivalents were generated from the supplied specifications. Visual inspection confirmed the mark; full web checks were not run for this asset-only change.
 - Fixed Vercel's Fetch response typing errors in the photo route and R2 storage helper by explicitly typing the response fields used by those requests, independent of ambient server `Response` declarations. API TypeScript checking and targeted ESLint pass with TypeScript 5.9.3; the Vercel build has not yet rerun.

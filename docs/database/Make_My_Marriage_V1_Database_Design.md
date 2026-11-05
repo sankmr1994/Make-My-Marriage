@@ -163,6 +163,7 @@ Represents all logged-in Admins and Organisers for a wedding.
 | `weddingId` | ObjectId | Yes | References `weddings._id` |
 | `userId` | ObjectId | Yes | References `users._id` |
 | `role` | enum | Yes | `ADMIN`, `ORGANISER` only |
+| `permissions` | string[] | No | Organiser capability keys for this wedding; absent on legacy records preserves prior operational access; Admin always has full access |
 | `status` | enum | Yes | `ACTIVE`, `REMOVED` |
 | `invitedByUserId` | ObjectId | No | References inviter where relevant |
 | `joinedAt` | Date | Yes |  |
@@ -187,6 +188,7 @@ One document per invite token, including reissued invitations.
 | `weddingId` | ObjectId | Yes |  |
 | `emailNormalized` | string | Yes | Destination email snapshot, normalized |
 | `role` | enum | Yes | `ADMIN`, `ORGANISER` |
+| `organiserPermissions` | string[] | No | Permission snapshot applied when an Organiser accepts; Admin invitations must omit it; new invitations default to Standard |
 | `invitedByUserId` | ObjectId | Yes | Must be an Admin for an Organiser invitation; partner flow is separately controlled |
 | `tokenHash` | string | Yes | Hash of cryptographically random token; unique index |
 | `status` | enum | Yes | `PENDING`, `ACCEPTED`, `REVOKED`, `EXPIRED` |
