@@ -39,6 +39,8 @@ const guestPhotoLinksInput = z.object({ guestId: objectId, purposes: z.array(acc
 const moderationInput = z.object({ moderationStatus: z.enum(["VISIBLE", "REJECTED"]) }).strict();
 const listQuery = z.object({ status: z.enum(["PENDING_REVIEW", "VISIBLE", "REJECTED", "DELETED"]).optional(), eventId: objectId.optional(), scope: z.enum(["ALL", "COMMON"]).optional(), uploaderType: z.enum(["GUEST", "ADMIN", "ORGANISER"]).optional(), uploaderUserId: objectId.optional(), guestId: objectId.optional(), limit: z.coerce.number().int().min(1).max(100).default(40), before: z.iso.datetime({ offset: true }).optional() }).strict().refine((value) => !(value.eventId && value.scope && value.scope !== "ALL"), "Choose either an event or common photos.").refine((value) => !(value.uploaderUserId && value.guestId), "Choose either a team member or a guest.");
 const publicGalleryQuery = z.object({ eventId: objectId.optional(), scope: z.enum(["ALL", "COMMON"]).optional(), limit: z.coerce.number().int().min(1).max(100).default(40), before: z.iso.datetime({ offset: true }).optional() }).strict().refine((value) => !(value.eventId && value.scope && value.scope !== "ALL"), "Choose either an event or common photos.");
+type ImageFetchChunk = { done: true; value?: undefined } | { done: false; value: Uint8Array };
+type ImageFetchResponse = { ok: boolean; body: { getReader: () => { read: () => Promise<ImageFetchChunk>; cancel: () => Promise<unknown> } } | null };
 
 function cookieValue(request: Request, name: string) {
   const value = request.headers.cookie?.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${name}=`));
@@ -68,7 +70,7 @@ async function activeEvent(weddingId: unknown, eventId: string) {
   return event;
 }
 async function verifyImageBytes(objectKey: string, contentType: string) {
-  const response = await fetch(createDownloadUrl(objectKey, 60), { headers: { Range: "bytes=0-11" } });
+  const response = await fetch(createDownloadUrl(objectKey, 60), { headers: { Range: "bytes=0-11" } }) as unknown as ImageFetchResponse;
   if (!response.ok || !response.body) return false;
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -103,7 +105,7 @@ async function submitPhotoLinksEmail(input: { email: string; guestName: string; 
   const items = input.links.map((link) => `<p style="margin:18px 0"><a href="${escapeHtml(link.url)}" style="display:inline-block;background:#262923;color:#fff;text-decoration:none;padding:14px 20px;border-radius:4px">${link.purpose === "PHOTO_UPLOAD" ? "Upload wedding photos" : "View wedding gallery"}</a></p>`).join("");
   const html = `<div style="font-family:Arial,sans-serif;color:#262923;max-width:560px;margin:auto;padding:32px"><p style="letter-spacing:.12em;color:#747c68;font-size:12px">MAKE MY MARRIAGE</p><h1 style="font-family:Georgia,serif;font-weight:400">Wedding photo access</h1><p>Dear ${escapeHtml(input.guestName)},</p><p>You have been given access to photos for <strong>${escapeHtml(input.weddingName)}</strong>. Use the link${input.links.length === 1 ? "" : "s"} below. ${input.links.some((link) => link.purpose === "PHOTO_UPLOAD") ? "Guest uploads are reviewed by the wedding team before appearing in the gallery." : "The gallery shows approved photos."}</p>${items}<p style="color:#747c68;font-size:12px">These private links expire in 90 days. Please do not forward them.</p></div>`;
   try {
-    const result = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ from: env.RESEND_FROM_EMAIL, to: [input.email], subject: `Wedding photos · ${input.weddingName}`, html }) });
+    const result = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ from: env.RESEND_FROM_EMAIL, to: [input.email], subject: `Wedding photos · ${input.weddingName}`, html }) }) as unknown as { ok: boolean };
     if (!result.ok) return { status: "FAILED" as const };
     return { status: "ACCEPTED" as const };
   } catch { return { status: "FAILED" as const }; }
