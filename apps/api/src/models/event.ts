@@ -9,6 +9,7 @@ export type EventDocument = {
   endsAt?: Date;
   timeZone: string;
   venue: { name?: string; address: string; city?: string };
+  coverPhotoObjectKey?: string;
   description?: string;
   status: "ACTIVE" | "ARCHIVED";
   createdByUserId: Types.ObjectId;
@@ -29,6 +30,7 @@ const eventSchema = new Schema<EventDocument>({
     city: { type: String, trim: true, maxlength: 100 }
   },
   description: { type: String, trim: true, maxlength: 2000 },
+  coverPhotoObjectKey: { type: String, maxlength: 512 },
   status: { type: String, enum: ["ACTIVE", "ARCHIVED"], required: true, default: "ACTIVE" },
   createdByUserId: { type: Schema.Types.ObjectId, required: true, ref: "User" }
 }, { timestamps: true, collection: "events" });

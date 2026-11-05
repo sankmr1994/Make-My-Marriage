@@ -1,0 +1,23 @@
+{
+  "name": "Make My Marriage",
+  "short_name": "MMM",
+  "description": "One wedding, one shared space.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8f6f1",
+  "theme_color": "#262923",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

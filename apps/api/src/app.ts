@@ -13,6 +13,7 @@ import { expensesRouter } from "./routes/expenses.js";
 import { guestsRouter } from "./routes/guests.js";
 import { vendorsRouter } from "./routes/vendors.js";
 import { websiteRouter } from "./routes/website.js";
+import { photosRouter } from "./routes/photos.js";
 
 const require = createRequire(import.meta.url);
 const helmet = require("helmet") as typeof import("helmet").default;
@@ -36,6 +37,7 @@ app.use("/api/v1", expensesRouter);
 app.use("/api/v1", guestsRouter);
 app.use("/api/v1", vendorsRouter);
 app.use("/api/v1", websiteRouter);
+app.use("/api/v1", photosRouter);
 app.use(errorHandler);
 
 export default app;

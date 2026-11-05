@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <mask id="sage-underpass">
+      <rect width="512" height="512" fill="white" />
+      <circle cx="256" cy="126.7" r="34" fill="black" />
+    </mask>
+  </defs>
+  <circle cx="184" cy="256" r="148" stroke="#262923" stroke-width="40" />
+  <circle cx="328" cy="256" r="148" stroke="#747C68" stroke-width="40" mask="url(#sage-underpass)" />
+</svg>

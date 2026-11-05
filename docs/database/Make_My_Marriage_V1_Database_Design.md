@@ -326,7 +326,7 @@ Used for RSVP links and reusable QR/link access for photo uploads or gallery vie
 | `weddingId` | ObjectId | Yes | Scope |
 | `purpose` | enum | Yes | `RSVP`, `PHOTO_UPLOAD`, `GALLERY_VIEW` |
 | `eventId` | ObjectId | No | Required for event-specific RSVP; optional for wedding-wide photo link |
-| `guestId` | ObjectId | No | Required for RSVP link; absent for shared QR links |
+| `guestId` | ObjectId | No | Guest-specific photo link; absent for wedding-wide shared QR links |
 | `tokenHash` | string | Yes | Unique; store a secure hash of the raw random token for validation |
 | `tokenCiphertext` | string | No | Only for reusable QR links if the same QR must be re-rendered; encrypt with authenticated encryption and a server-only key, or reissue a new link instead |
 | `expiresAt` | Date | No | If absent, the link stays valid until revoked; recommended to set a default expiration for QR links |
@@ -432,6 +432,9 @@ MongoDB stores only metadata; media bytes are stored in R2.
 | `sizeBytes` | integer | Yes | Must be within application size limit |
 | `etag` | string | No | R2 object metadata if available |
 | `uploaderType` | enum | Yes | `GUEST`, `ADMIN`, `ORGANISER` |
+| `uploaderUserId` | ObjectId | No | Authenticated uploader; present for Admin/Organiser uploads |
+| `guestId` | ObjectId | No | Derived from a validated guest-specific photo link; absent for shared QR uploads |
+| `contributorName` | string | No | Snapshot of the authenticated Admin/Organiser name only |
 | `guestAccessLinkId` | ObjectId | No | Link used for guest upload |
 | `moderationStatus` | enum | Yes | `PENDING_REVIEW`, `VISIBLE`, `REJECTED`, `DELETED` |
 | `createdAt`, `updatedAt` | Date | Yes |  |
@@ -448,6 +451,9 @@ One document for each requested direct-to-R2 upload. Do not persist the presigne
 | `weddingId` | ObjectId | Yes |  |
 | `eventId` | ObjectId | No | Optional event association |
 | `guestAccessLinkId` | ObjectId | No | Guest QR/link context |
+| `guestId` | ObjectId | No | Guest identity derived from the validated link |
+| `uploaderUserId` | ObjectId | No | Signed-in Admin/Organiser who requested the upload |
+| `contributorName` | string | No | Snapshot of authenticated uploader display name |
 | `objectKey` | string | Yes | Unique server-generated R2 key |
 | `expectedContentType` | string | Yes | Allow-list, e.g. JPEG/PNG/WebP |
 | `expectedSizeBytes` | integer | Yes | Validate positive and below configured maximum |

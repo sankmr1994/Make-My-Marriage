@@ -246,8 +246,10 @@ Each guest record contains `primaryContactName`, `email`, `emailNormalized`, and
 | Method | Endpoint | Access | Purpose |
 |---|---|---|---|
 | `POST` | `/weddings/current/guest-access-links` | Admin/Organiser | Create shared QR/link for `PHOTO_UPLOAD` or `GALLERY_VIEW` |
+| `POST` | `/weddings/current/guest-photo-links` | Admin/Organiser | Create one or both guest-specific photo links and optionally email them to that guest |
 | `GET` | `/weddings/current/guest-access-links` | Admin/Organiser | List link metadata without revealing raw tokens |
 | `POST` | `/weddings/current/guest-access-links/:linkId/revoke` | Admin/Organiser | Revoke a shared link |
+| `POST` | `/weddings/current/guest-access-links/:linkId/reissue` | Admin/Organiser | Revoke an active link and return a fresh token for the same purpose and scope |
 | `POST` | `/public/guest-links/resolve` | Public with token in request body | Validate token and return minimal scoped context |
 | `POST` | `/public/rsvps` | Public with RSVP token | Create/update RSVP for token-mapped family and event |
 
@@ -306,7 +308,7 @@ Nearby discovery inputs include `category`, `eventId` or explicit `lat`/`lng`, `
 
 | Method | Endpoint | Access | Purpose |
 |---|---|---|---|
-| `GET` | `/photos` | Admin/Organiser | List wedding photos and moderation states |
+| `GET` | `/photos` | Admin/Organiser | List/filter wedding photos by event, uploader role, team member, or guest record |
 | `POST` | `/photo-upload-sessions` | Admin/Organiser | Request direct R2 upload URL for a cover/event/gallery image |
 | `POST` | `/photo-upload-sessions/:sessionId/complete` | Admin/Organiser | Verify upload and create/update related media metadata |
 | `POST` | `/public/photo-upload-sessions` | Public with `PHOTO_UPLOAD` token | Create upload session for guest photo |
@@ -317,7 +319,7 @@ Nearby discovery inputs include `category`, `eventId` or explicit `lat`/`lng`, `
 | `GET` | `/public/gallery/photos` | Public with `GALLERY_VIEW` token | List only visible photos in permitted scope |
 | `GET` | `/public/gallery/photos/:photoId/download-url` | Public with `GALLERY_VIEW` token | Generate controlled read URL for a visible photo |
 
-The `PHOTO_UPLOAD` link must be validated on both session creation and completion. A guest cannot submit an arbitrary R2 `objectKey`. The session owns a server-generated object key. Do not return a photo record until R2 metadata is verified. Guest uploads start as `PENDING_REVIEW`; only visible photos may be returned by the public gallery route.
+The `PHOTO_UPLOAD` link must be validated on both session creation and completion. A guest cannot submit an arbitrary R2 `objectKey`. The session owns a server-generated object key. Do not return a photo record until R2 metadata is verified. Guest uploads start as `PENDING_REVIEW`; only visible photos may be returned by the public gallery route. Guest-specific photo links store the associated guest ID, which the upload API derives from the validated token rather than request data. Wedding-wide QR links remain available and are anonymous. Admin/Organiser uploads record the authenticated user ID and display name.
 
 **Database alignment note:** add a `purpose` field to `photoUploadSessions` (suggested values: `WEDDING_COVER`, `EVENT_COVER`, `GALLERY_PHOTO`) so the completion endpoint knows whether to update a wedding/event cover key or create a gallery `photos` record. This is a small database-design addition needed to support wedding/event cover uploads consistently.
 

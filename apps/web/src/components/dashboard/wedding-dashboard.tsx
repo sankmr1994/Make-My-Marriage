@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Archive, ArrowDownUp, CalendarDays, Check, ChevronDown, ChevronRight, Circle, CircleDollarSign, Clock3, Globe2, Heart, LoaderCircle, LockKeyhole, LogOut, MapPin, Pencil, Plus, RotateCcw, Save, Search, Trash2, Users, X } from "lucide-react";
+import { Archive, ArrowDownUp, CalendarDays, Check, ChevronDown, ChevronRight, Circle, CircleDollarSign, Clock3, Globe2, Heart, Images, LoaderCircle, LockKeyhole, LogOut, MapPin, Pencil, Plus, RotateCcw, Save, Search, Trash2, Users, X } from "lucide-react";
 import { apiBaseUrl } from "@/lib/api";
 import { ExpenseWorkspace } from "@/components/dashboard/expense-workspace";
 import { GuestWorkspace } from "@/components/dashboard/guest-workspace";
 import { VendorWorkspace, type WorkspaceVendor } from "@/components/dashboard/vendor-workspace";
 import { WebsiteWorkspace } from "@/components/dashboard/website-workspace";
+import { PhotoWorkspace } from "@/components/dashboard/photo-workspace";
 
 type Wedding = { id: string; couple: { brideName: string; groomName: string }; weddingDate: string; timeZone: string; location: { address: string; city?: string; state?: string; country?: string } };
 type WeddingEvent = { id: string; name: string; startsAt: string; timeZone: string; venue: { name?: string; address: string; city?: string }; description?: string; status: "ACTIVE" | "ARCHIVED" };
@@ -66,7 +67,7 @@ export function WeddingDashboard() {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [editSection, setEditSection] = useState<EditSection>(null);
-  const [activeView, setActiveView] = useState<"dashboard" | "wedding" | "events" | "tasks" | "expenses" | "guests" | "vendors" | "website" | "team">("dashboard");
+  const [activeView, setActiveView] = useState<"dashboard" | "wedding" | "events" | "tasks" | "expenses" | "guests" | "vendors" | "website" | "photos" | "team">("dashboard");
   const [eventFilter, setEventFilter] = useState<"ALL" | "UPCOMING" | "PAST" | "ARCHIVED">("ALL");
   const [eventSearch, setEventSearch] = useState("");
   const [eventSortOrder, setEventSortOrder] = useState<"ASC" | "DESC">("ASC");
@@ -461,6 +462,7 @@ export function WeddingDashboard() {
         <button className={activeView === "guests" ? "is-active" : ""} type="button" aria-current={activeView === "guests" ? "page" : undefined} onClick={() => setActiveView("guests")}><Users size={17} /> Guests &amp; invitations</button>
         <button className={activeView === "vendors" ? "is-active" : ""} type="button" aria-current={activeView === "vendors" ? "page" : undefined} onClick={() => setActiveView("vendors")}><span>▣</span> Vendors</button>
         <button className={activeView === "website" ? "is-active" : ""} type="button" aria-current={activeView === "website" ? "page" : undefined} onClick={() => setActiveView("website")}><Globe2 size={17} /> Wedding website</button>
+        <button className={activeView === "photos" ? "is-active" : ""} type="button" aria-current={activeView === "photos" ? "page" : undefined} onClick={() => setActiveView("photos")}><Images size={17} /> Guest photos</button>
         <button className={activeView === "team" ? "is-active" : ""} type="button" aria-current={activeView === "team" ? "page" : undefined} onClick={() => { setActiveView("team"); setTeamTab("ACTIVE"); }}><Users size={17} /> Team <span className="workspace-count">{teamLoaded ? teamMembers.length : "…"}</span></button>
       </nav>
       <div className="workspace-sidebar-bottom"><span className="workspace-avatar">{account.displayName.slice(0, 1).toUpperCase()}</span><span className="workspace-user"><strong>{account.displayName}</strong><small>{account.email}</small></span><button type="button" aria-label="Sign out" title="Sign out" onClick={() => void signOut()} disabled={saving}><LogOut size={17} /></button></div>
@@ -490,6 +492,7 @@ export function WeddingDashboard() {
         {activeView === "guests" && <GuestWorkspace events={events} onSummaryChange={setGuestTotals} />}
         {activeView === "vendors" && <VendorWorkspace events={events} city={wedding.location.city} />}
         {activeView === "website" && <WebsiteWorkspace events={events} couple={wedding.couple} />}
+        {activeView === "photos" && <PhotoWorkspace events={activeEvents.map((event) => ({ id: event.id, name: event.name }))} eventFilters={events.map((event) => ({ id: event.id, name: event.name, status: event.status }))} />}
         {activeView === "events" && <>
           <div className="workspace-events-heading"><div><p className="workspace-eyebrow">CEREMONIAL REGISTRY <span>·</span> {wedding.location.city} SCHEDULE</p><h1>Ceremonies &amp; Events</h1><p>Plan your ceremonial timeline. All times are shown in {wedding.timeZone}.</p></div><button className="button button--dark" type="button" onClick={() => { setNewEventName(""); setDescriptionLength(0); setEditSection("create"); }}><Plus size={16} /> Create event</button></div>
           <div className="workspace-event-controls"><div className="workspace-event-tabs" role="tablist" aria-label="Filter events">{(["ALL", "UPCOMING", "PAST", "ARCHIVED"] as const).map((filter) => <button type="button" role="tab" aria-selected={eventFilter === filter} className={eventFilter === filter ? "is-active" : ""} key={filter} onClick={() => setEventFilter(filter)}>{filter === "ALL" ? "All events" : filter[0] + filter.slice(1).toLowerCase()} <span>{eventCounts[filter]}</span></button>)}</div><label className="workspace-event-search"><Search size={16} /><input aria-label="Filter events by name, venue, or date" placeholder="Filter by event, venue or date…" value={eventSearch} onChange={(event) => setEventSearch(event.target.value)} /></label><div className="workspace-sort-control" ref={sortControlRef}><button ref={sortTriggerRef} className="workspace-sort-trigger" type="button" aria-haspopup="menu" aria-expanded={sortMenuOpen} aria-label={`Sort events: ${eventSortOrder === "ASC" ? "Soonest first" : "Furthest date first"}`} onClick={() => setSortMenuOpen((open) => !open)}><ArrowDownUp size={15} /><span>{eventSortOrder === "ASC" ? "Soonest first" : "Furthest date first"}</span><ChevronDown className={sortMenuOpen ? "is-open" : ""} size={14} /></button>{sortMenuOpen && <div className="workspace-sort-menu" role="menu" aria-label="Sort events"><button type="button" role="menuitemradio" aria-checked={eventSortOrder === "ASC"} onClick={() => { setEventSortOrder("ASC"); setSortMenuOpen(false); }}>Soonest first{eventSortOrder === "ASC" && <Check size={14} />}</button><button type="button" role="menuitemradio" aria-checked={eventSortOrder === "DESC"} onClick={() => { setEventSortOrder("DESC"); setSortMenuOpen(false); }}>Furthest date first{eventSortOrder === "DESC" && <Check size={14} />}</button></div>}</div></div>
