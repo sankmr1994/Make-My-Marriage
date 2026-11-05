@@ -6,6 +6,7 @@ const algorithm = "AWS4-HMAC-SHA256";
 const region = "auto";
 const service = "s3";
 const emptyHash = createHash("sha256").update("").digest("hex");
+type StorageFetchResponse = { status: number; ok: boolean; headers: { get: (name: string) => string | null } };
 
 function settings() {
   const { R2_ACCOUNT_ID, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME } = env;
@@ -89,7 +90,7 @@ async function signedRequest(method: "HEAD" | "DELETE", key: string) {
     "x-amz-content-sha256": emptyHash,
     "x-amz-date": date,
     authorization: `${algorithm} Credential=${config.accessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`
-  } });
+  } }) as unknown as StorageFetchResponse;
   if (method === "HEAD" && response.status === 404) return null;
   if (!response.ok && !(method === "DELETE" && response.status === 404)) {
     throw new AppError(502, "PROVIDER_ERROR", "Photo storage could not verify or remove the uploaded image.");
