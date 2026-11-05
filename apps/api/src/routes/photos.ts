@@ -1,4 +1,4 @@
-import { Router, type Request, type Response, type Router as ExpressRouter } from "express";
+import { Router, type Request, type Response as ExpressResponse, type Router as ExpressRouter } from "express";
 import { randomUUID } from "node:crypto";
 import { Types } from "mongoose";
 import { z } from "zod";
@@ -55,7 +55,7 @@ async function adminScope(request: Request) {
   if (!membership || !["ADMIN", "ORGANISER"].includes(membership.role)) throw new AppError(403, "FORBIDDEN", "Only wedding Admins and Organisers can manage photos.");
   return { user, membership };
 }
-function validationError(response: Response, issues: z.ZodIssue[]) {
+function validationError(response: ExpressResponse, issues: z.ZodIssue[]) {
   response.status(400).json({ error: { code: "VALIDATION_ERROR", message: "The request contains invalid fields.", fieldErrors: Object.fromEntries(issues.map((issue) => [String(issue.path[0] ?? "request"), issue.message])) } });
 }
 function cleanFilename(filename?: string) { return filename?.replaceAll("/", "_").replaceAll("\\", "_").split("").filter((character) => character.charCodeAt(0) >= 32 && character.charCodeAt(0) !== 127).join("").slice(0, 160); }
